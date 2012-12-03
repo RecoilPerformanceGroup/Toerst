@@ -7,15 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE908164A9F78000DBD4D /* Cocoa.framework */; };
 		DDFCE913164A9F78000DBD4D /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE911164A9F78000DBD4D /* InfoPlist.strings */; };
 		DDFCE915164A9F78000DBD4D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE914164A9F78000DBD4D /* main.m */; };
 		DDFCE919164A9F78000DBD4D /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE917164A9F78000DBD4D /* Credits.rtf */; };
-		DDFCE91C164A9F78000DBD4D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE91B164A9F78000DBD4D /* AppDelegate.m */; };
+		DDFCE91C164A9F78000DBD4D /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */; };
 		DDFCE91F164A9F78000DBD4D /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE91D164A9F78000DBD4D /* MainMenu.xib */; };
+		DDFCE92F164A9FCB000DBD4D /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */; };
+		DDFCE931164AA00F000DBD4D /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */; };
+		DDFCE940164AA14E000DBD4D /* Project.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE93F164AA14E000DBD4D /* Project.xcconfig */; };
+		DDFCE943164AA40E000DBD4D /* ParticleSystem.mm in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */; };
+		DDFCE945164AA4B8000DBD4D /* kernel.cl in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE944164AA4B8000DBD4D /* kernel.cl */; };
+		DDFCE947164AA4E0000DBD4D /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE946164AA4E0000DBD4D /* OpenCL.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		DDFCE930164A9FFD000DBD4D /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				DDFCE931164AA00F000DBD4D /* ofxCocoaPlugins.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DDFCE904164A9F78000DBD4D /* Toerst.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Toerst.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDFCE908164A9F78000DBD4D /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		DDFCE90B164A9F78000DBD4D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -27,8 +48,14 @@
 		DDFCE916164A9F78000DBD4D /* Toerst-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Toerst-Prefix.pch"; sourceTree = "<group>"; };
 		DDFCE918164A9F78000DBD4D /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
 		DDFCE91A164A9F78000DBD4D /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		DDFCE91B164A9F78000DBD4D /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
 		DDFCE91E164A9F78000DBD4D /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../../../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
+		DDFCE93F164AA14E000DBD4D /* Project.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
+		DDFCE941164AA40E000DBD4D /* ParticleSystem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParticleSystem.h; sourceTree = "<group>"; };
+		DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ParticleSystem.mm; sourceTree = "<group>"; };
+		DDFCE944164AA4B8000DBD4D /* kernel.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = kernel.cl; sourceTree = "<group>"; };
+		DDFCE946164AA4E0000DBD4D /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = System/Library/Frameworks/OpenCL.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -36,6 +63,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */,
+				DDFCE947164AA4E0000DBD4D /* OpenCL.framework in Frameworks */,
+				DDFCE92F164A9FCB000DBD4D /* ofxCocoaPlugins.framework in Frameworks */,
 				DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -46,6 +76,10 @@
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
+				DD098341164C020700CA6147 /* OpenGL.framework */,
+				DDFCE946164AA4E0000DBD4D /* OpenCL.framework */,
+				DDFCE93F164AA14E000DBD4D /* Project.xcconfig */,
+				DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */,
 				DDFCE90E164A9F78000DBD4D /* Toerst */,
 				DDFCE907164A9F78000DBD4D /* Frameworks */,
 				DDFCE905164A9F78000DBD4D /* Products */,
@@ -83,8 +117,11 @@
 			isa = PBXGroup;
 			children = (
 				DDFCE91A164A9F78000DBD4D /* AppDelegate.h */,
-				DDFCE91B164A9F78000DBD4D /* AppDelegate.m */,
+				DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */,
+				DDFCE941164AA40E000DBD4D /* ParticleSystem.h */,
+				DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
+				DDFCE944164AA4B8000DBD4D /* kernel.cl */,
 				DDFCE90F164A9F78000DBD4D /* Supporting Files */,
 			);
 			path = Toerst;
@@ -112,6 +149,7 @@
 				DDFCE900164A9F78000DBD4D /* Sources */,
 				DDFCE901164A9F78000DBD4D /* Frameworks */,
 				DDFCE902164A9F78000DBD4D /* Resources */,
+				DDFCE930164A9FFD000DBD4D /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -156,6 +194,7 @@
 				DDFCE913164A9F78000DBD4D /* InfoPlist.strings in Resources */,
 				DDFCE919164A9F78000DBD4D /* Credits.rtf in Resources */,
 				DDFCE91F164A9F78000DBD4D /* MainMenu.xib in Resources */,
+				DDFCE940164AA14E000DBD4D /* Project.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -167,7 +206,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				DDFCE915164A9F78000DBD4D /* main.m in Sources */,
-				DDFCE91C164A9F78000DBD4D /* AppDelegate.m in Sources */,
+				DDFCE91C164A9F78000DBD4D /* AppDelegate.mm in Sources */,
+				DDFCE943164AA40E000DBD4D /* ParticleSystem.mm in Sources */,
+				DDFCE945164AA4B8000DBD4D /* kernel.cl in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -205,10 +246,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++98";
 				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_ARC = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
@@ -235,10 +276,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++98";
 				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_ARC = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
@@ -256,8 +297,15 @@
 		};
 		DDFCE923164A9F78000DBD4D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DDFCE93F164AA14E000DBD4D /* Project.xcconfig */;
 			buildSettings = {
+				CLANG_CXX_LIBRARY = "libstdc++";
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
+				);
+				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Toerst/Toerst-Prefix.pch";
 				INFOPLIST_FILE = "Toerst/Toerst-Info.plist";
@@ -268,8 +316,15 @@
 		};
 		DDFCE924164A9F78000DBD4D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DDFCE93F164AA14E000DBD4D /* Project.xcconfig */;
 			buildSettings = {
+				CLANG_CXX_LIBRARY = "libstdc++";
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
+				);
+				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Toerst/Toerst-Prefix.pch";
 				INFOPLIST_FILE = "Toerst/Toerst-Info.plist";
@@ -297,6 +352,7 @@
 				DDFCE924164A9F78000DBD4D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
