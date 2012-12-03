@@ -8,8 +8,8 @@
 
 #import "ParticleSystem.h"
 
-//#define NUM_PARTICLES (1024*128)
-#define NUM_PARTICLES (1024)
+#define NUM_PARTICLES (1024*64)
+//#define NUM_PARTICLES (1024)
 /*
 
 typedef struct{
@@ -19,9 +19,15 @@ typedef struct{
 } Particle;*/
 
 @implementation ParticleSystem
+@synthesize clTime = _clTime;
 
 -(void)initPlugin{
     firstLoop = YES;
+    
+    [self addPropF:@"mouseForce"];
+    [self addPropF:@"generalDt"];
+    [self addPropF:@"particleDamp"];
+    [self addPropF:@"particleMinSpeed"];
   /*  int i;
     char name[128];
     
@@ -205,6 +211,13 @@ typedef struct{
 int curr_read_index, curr_write_index;
 
 -(void)update:(NSDictionary *)drawingInformation{
+    vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
+
+    CachePropF(mouseForce);
+    CachePropF(particleDamp);
+    CachePropF(generalDt);
+    CachePropF(particleMinSpeed);
+    
     dispatch_async(queue,
                    ^{
                        size_t wgs;
@@ -233,13 +246,26 @@ int curr_read_index, curr_write_index;
                        };
                        
                        
+                       NSDate * time = [NSDate date];
                        
+                       for(int i=0;i<trackers.size();i++){
+                           cl_float2 mousePos;
+                           mousePos.s[0] = trackers[i].x;
+                           mousePos.s[1] = trackers[i].y;
+                           mouseForce_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu, mousePos , mouseForce*0.1);
+                     //      ofCircle(trackers[i].x, trackers[i].y, 0.01);
+                       }
                        
                        // Queue CL kernel to dispatch queue.
-                       update_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu , 0.1* 1.0/ofGetFrameRate());
+                       update_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu , generalDt* 1.0/60.0, 1.0-particleDamp*0.1, particleMinSpeed*0.1);
                        // Signal the dispatch semaphore to indicate that
                        // GL can now use resources.
                        dispatch_semaphore_signal(cl_gl_semaphore);
+                       
+                       
+                       self.clTime = self.clTime * 0.99 + 1000.0*[time timeIntervalSinceNow]*0.01;
+                       
+                    //  NSLog(@"Time %f", self.clTime);
                    });
 
 }

@@ -22,6 +22,10 @@
     void * particle_gpu;
     
     BOOL firstLoop;
+    
+    float _clTime;
 }
+
+@property (readwrite) float clTime;
 
 @end

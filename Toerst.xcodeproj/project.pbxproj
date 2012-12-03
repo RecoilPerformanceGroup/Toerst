@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
+		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
 		DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE908164A9F78000DBD4D /* Cocoa.framework */; };
 		DDFCE913164A9F78000DBD4D /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE911164A9F78000DBD4D /* InfoPlist.strings */; };
 		DDFCE915164A9F78000DBD4D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE914164A9F78000DBD4D /* main.m */; };
@@ -37,6 +38,7 @@
 
 /* Begin PBXFileReference section */
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
 		DDFCE904164A9F78000DBD4D /* Toerst.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Toerst.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDFCE908164A9F78000DBD4D /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		DDFCE90B164A9F78000DBD4D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -120,6 +122,7 @@
 				DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */,
 				DDFCE941164AA40E000DBD4D /* ParticleSystem.h */,
 				DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */,
+				DD5E59C0166CE63900741B57 /* ParticleSystem.xib */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
 				DDFCE944164AA4B8000DBD4D /* kernel.cl */,
 				DDFCE90F164A9F78000DBD4D /* Supporting Files */,
@@ -195,6 +198,7 @@
 				DDFCE919164A9F78000DBD4D /* Credits.rtf in Resources */,
 				DDFCE91F164A9F78000DBD4D /* MainMenu.xib in Resources */,
 				DDFCE940164AA14E000DBD4D /* Project.xcconfig in Resources */,
+				DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
