@@ -13,6 +13,8 @@
 
 @interface ParticleSystem : ofPlugin{
     GLuint				vbo;
+    GLuint              texture;
+
     
     dispatch_queue_t queue;
     dispatch_semaphore_t cl_gl_semaphore;
@@ -20,6 +22,7 @@
     
     void * pos_gpu;
     void * particle_gpu;
+    cl_image texture_gpu;
     
     BOOL firstLoop;
     

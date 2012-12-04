@@ -8,6 +8,8 @@
 
 #import "ParticleSystem.h"
 
+#define TEXTURE_RES 1024
+
 #define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024)
 /*
@@ -180,7 +182,23 @@ typedef struct{
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(ofVec2f) * NUM_PARTICLES, particlesPos, GL_DYNAMIC_COPY);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-  
+    
+    
+    float * textureData = (float*) malloc(sizeof(float)*TEXTURE_RES*TEXTURE_RES*3);
+//    //memset(textureData, 10, TEXTURE_RES*TEXTURE_RES*3);
+    for(int i=0;i<TEXTURE_RES*TEXTURE_RES*3;i++){
+        textureData[i] = 0.5;
+    }
+    
+    glGenTextures( 1, &texture );
+    glBindTexture(GL_TEXTURE_2D,texture); // Set our Tex handle as current
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
+
   
     
     //Shared context
@@ -194,15 +212,16 @@ typedef struct{
     cl_gl_semaphore = dispatch_semaphore_create(0);
     
     pos_gpu = gcl_gl_create_ptr_from_buffer(vbo);
-    
+
+    texture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture);
+
     
     particle_gpu  = gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
     dispatch_async(queue,
                    ^{
-                       gcl_memcpy(pos_gpu, (ofVec2f*)particlesPos,
-                                sizeof(ofVec2f)*NUM_PARTICLES);
+                       gcl_memcpy(pos_gpu, (ofVec2f*)particlesPos, sizeof(ofVec2f)*NUM_PARTICLES);
                    });
     
     
@@ -218,8 +237,31 @@ int curr_read_index, curr_write_index;
     CachePropF(generalDt);
     CachePropF(particleMinSpeed);
     
+//    float * clear = (float*)malloc(sizeof(float)*TEXTURE_RES*TEXTURE_RES*4);
+    
     dispatch_async(queue,
                    ^{
+                       
+                       cl_ndrange ndrangeTex = {
+                           2,
+                           {0, 0, 0},
+                           {TEXTURE_RES, TEXTURE_RES},
+                           {0}
+                       };
+                       
+                       clearTexture_kernel(&ndrangeTex, texture_gpu);
+                       
+                       const size_t origin[3] = { 0, 0, 0 };
+                       const size_t region[3] = { TEXTURE_RES, TEXTURE_RES, 1 };
+                      // gcl_copy_ptr_to_image((cl_mem)texture_gpu, clear, origin, region);
+                      // testTexture_kernel(&ndrangeTex, (cl_image)texture_gpu);
+                       
+                       
+                   });
+    dispatch_async(queue,
+                   ^{
+                       
+
                        size_t wgs;
                        gcl_get_kernel_block_workgroup_info(update_kernel,
                                                            CL_KERNEL_WORK_GROUP_SIZE,
@@ -250,14 +292,14 @@ int curr_read_index, curr_write_index;
                        
                        for(int i=0;i<trackers.size();i++){
                            cl_float2 mousePos;
-                           mousePos.s[0] = trackers[i].x;
-                           mousePos.s[1] = trackers[i].y;
+                           mousePos.s[0] = trackers[i].y;
+                           mousePos.s[1] = 1-trackers[i].x;
                            mouseForce_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu, mousePos , mouseForce*0.1);
                      //      ofCircle(trackers[i].x, trackers[i].y, 0.01);
                        }
                        
                        // Queue CL kernel to dispatch queue.
-                       update_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu , generalDt* 1.0/60.0, 1.0-particleDamp*0.1, particleMinSpeed*0.1);
+                       update_kernel(&ndrange, (Particle*)particle_gpu, (cl_float2*)pos_gpu , generalDt* 1.0/60.0, 1.0-particleDamp, particleMinSpeed);
                        // Signal the dispatch semaphore to indicate that
                        // GL can now use resources.
                        dispatch_semaphore_signal(cl_gl_semaphore);
@@ -275,6 +317,20 @@ int curr_read_index, curr_write_index;
     if(!firstLoop)
         dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
     
+    ofSetColor(255, 255, 255);
+
+    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_2D, texture );
+    glBegin(GL_QUADS);
+
+    glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
+    glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
+    glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
+    glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
+    
+    
     
     ofSetColor(255, 255, 255);
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
@@ -290,7 +346,7 @@ int curr_read_index, curr_write_index;
     vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     ofSetColor(100, 100, 100);
     for(int i=0;i<trackers.size();i++){
-        ofCircle(trackers[i].x, trackers[i].y, 0.01);
+        ofCircle(trackers[i].y, 1-trackers[i].x, 0.01);
     }
     
 }

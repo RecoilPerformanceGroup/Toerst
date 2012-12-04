@@ -11,7 +11,7 @@ kernel void update(global Particle* particles,  global float2* posBuffer, const 
 
     __global Particle *p = &particles[i];
     
-    float force = length(p->f);
+    float force = fast_length(p->f);
     if(force < minSpeed * p->mass) p->f *= 0.0;
 
     
@@ -41,6 +41,33 @@ kernel void mouseForce(global Particle* particles,  global float2* posBuffer, co
 	diff *= mouseForce * invDistSQ;
     
 	p->f +=  - diff;
+
+}
+
+kernel void clearTexture(write_only image2d_t image){
+    int2 coords = (int2)(get_global_id(0), get_global_id(1));
+    
+    //float4 color	= read_imagef(srcImage, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, coords);
+    
+    float4 color;
+    color[0] = 0.0;
+    color[1] = 0.0;
+    color[2] = 0.0;
+    color[3] = 1.0;
+    write_imagef(image, coords, color);
+}
+
+kernel void testTexture(write_only image2d_t image){
+	int2 coords = (int2)(get_global_id(0), get_global_id(1));
+    
+    //float4 color	= read_imagef(srcImage, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, coords);
+    
+    float4 color;
+    color[0] = coords[0]/1024.0;
+    color[1] = 1.0;
+    color[2] = 0.0;
+    color[3] = 1.0;
+    write_imagef(image, coords, color);
 
 }
 /*
