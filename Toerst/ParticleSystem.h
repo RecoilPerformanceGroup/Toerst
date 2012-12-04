@@ -20,7 +20,7 @@
     dispatch_semaphore_t cl_gl_semaphore;
     
     
-    void * pos_gpu;
+    cl_float2 * pos_gpu;
     void * particle_gpu;
     cl_image texture_gpu;
     
