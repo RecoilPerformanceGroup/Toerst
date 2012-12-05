@@ -21,7 +21,7 @@
     
     
     cl_float2 * pos_gpu;
-    void * particle_gpu;
+    Particle* particle_gpu;
     cl_image texture_gpu;
     
     BOOL firstLoop;

@@ -8,10 +8,12 @@
 
 #import "ParticleSystem.h"
 
-#define TEXTURE_RES 256
+#define TEXTURE_RES (128)
 
 //#define NUM_PARTICLES (1024*64)
-#define NUM_PARTICLES (1024*20)
+//#define NUM_PARTICLES (1024*1024*3)
+#define NUM_PARTICLES (1024*1000)
+
 /*
 
 typedef struct{
@@ -20,6 +22,8 @@ typedef struct{
 	float dummy;		// need this to make sure the float2 vel is aligned to a 16 byte boundary
 } Particle;*/
 
+
+
 @implementation ParticleSystem
 @synthesize clTime = _clTime;
 
@@ -27,9 +31,12 @@ typedef struct{
     firstLoop = YES;
     
     [self addPropF:@"mouseForce"];
+    [self addPropF:@"mouseRadius"];
     [self addPropF:@"generalDt"];
     [self addPropF:@"particleDamp"];
     [self addPropF:@"particleMinSpeed"];
+    [self addPropF:@"textureForce"];
+    [self addPropB:@"drawTexture"];
   /*  int i;
     char name[128];
     
@@ -166,7 +173,7 @@ typedef struct{
 	}
     
     
-    cout<<"Size: "<<sizeof(Particle)<<endl;
+    //    cout<<"Size: "<<sizeof(Particle)<<endl;
     
 
 
@@ -216,7 +223,7 @@ typedef struct{
     texture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture);
 
     
-    particle_gpu  = gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
+    particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
     dispatch_async(queue,
@@ -224,6 +231,20 @@ typedef struct{
                        gcl_memcpy(pos_gpu, (ofVec2f*)particlesPos, sizeof(ofVec2f)*NUM_PARTICLES);
                    });
     
+    
+    
+    cl_device_id cl_device = gcl_get_device_id_with_dispatch_queue(queue);
+    char name[128];
+    char vendor[128];
+    clGetDeviceInfo(cl_device, CL_DEVICE_NAME, 128, name, NULL);
+    clGetDeviceInfo(cl_device, CL_DEVICE_VENDOR, 128, vendor, NULL);
+    fprintf(stdout, "%s : %s\n", vendor, name);
+
+    size_t work_item_size;
+    clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(work_item_size), &work_item_size, NULL);
+    printf("Mac device work item sizes: %lu", work_item_size);
+//    clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(work_item_size), work_item_size, NULL);
+   // clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES)
     
 }
 
@@ -239,9 +260,11 @@ int curr_read_index, curr_write_index;
     vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     
     CachePropF(mouseForce);
+    CachePropF(mouseRadius);
     CachePropF(particleDamp);
     CachePropF(generalDt);
     CachePropF(particleMinSpeed);
+    CachePropF(textureForce);
     
     //    float * clear = (float*)malloc(sizeof(float)*TEXTURE_RES*TEXTURE_RES*4);
     
@@ -251,6 +274,14 @@ int curr_read_index, curr_write_index;
 
     dispatch_async(queue,
                    ^{
+                       size_t local_mem_size;
+                       gcl_get_kernel_block_workgroup_info(updateTexture_kernel,
+                                                           CL_KERNEL_LOCAL_MEM_SIZE,
+                                                           sizeof(local_mem_size), &local_mem_size, NULL);
+                       size_t wgs_tex;
+                       gcl_get_kernel_block_workgroup_info(updateTexture_kernel,
+                                                           CL_KERNEL_WORK_GROUP_SIZE,
+                                                           sizeof(wgs_tex), &wgs_tex, NULL);
                        
                        
                        size_t wgs;
@@ -266,12 +297,15 @@ int curr_read_index, curr_write_index;
                        };
                        
                        
+                       if(textureForce){
+                         //  textureForce_kernel(&ndrange, particle_gpu, pos_gpu, texture_gpu, textureForce*0.1);
+                       }
                        
                        for(int i=0;i<trackers.size();i++){
                            cl_float2 mousePos;
                            mousePos.s[0] = trackers[i].y;
                            mousePos.s[1] = 1-trackers[i].x;
-                           mouseForce_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu, mousePos , mouseForce*0.1);
+                           mouseForce_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
                            //      ofCircle(trackers[i].x, trackers[i].y, 0.01);
                        }
                        
@@ -281,30 +315,29 @@ int curr_read_index, curr_write_index;
                        //                       dispatch_group_leave(group);
                        
                        
-                       
-                       
-                       // Signal the dispatch semaphore to indicate that
-                       // GL can now use resources.
-                       
-                       
-                       
-                       //  NSLog(@"Time %f", self.clTime);
-                       /*   });
-                        
-                        dispatch_async(queue,
-                        ^{*/
-                       
                        cl_ndrange ndrangeTex = {
                            2,
                            {0, 0, 0},
                            {TEXTURE_RES, TEXTURE_RES},
-                           {0}
+                           {32,32,0}
                        };
                        
                        
-                       //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
-                       //   clearTexture_kernel(&ndrangeTex, texture_gpu);
-                       updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES);
+                       if(textureForce){
+                           //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+                           //   clearTexture_kernel(&ndrangeTex, texture_gpu);
+                           updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES, 1024*sizeof(int) );
+                           
+                           
+                           cl_ndrange ndrangeFixTex = {
+                               1,
+                               {0, 0, 0},
+                               {32*4* (TEXTURE_RES*TEXTURE_RES)/(32*32)},
+                               {32*4}
+                           };
+                           
+                           fixTextureWorkgroupEdges_kernel(&ndrangeFixTex, texture_gpu, texture_gpu, TEXTURE_RES/32);
+                       }
                        //updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES);
                        //  const size_t origin[3] = { 0, 0, 0 };
                        // const size_t region[3] = { TEXTURE_RES, TEXTURE_RES, 1 };
@@ -316,37 +349,40 @@ int curr_read_index, curr_write_index;
                        
                    });
     // Queue CL kernel to dispatch queue.
-
-   // if(!firstLoop)
-        dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
+    
+    // if(!firstLoop)
+    dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
     self.clTime =  1000.0*[time timeIntervalSinceNow];
-
-    ofSetColor(255, 255, 255);
-
-    glEnable( GL_TEXTURE_2D );
-    glBindTexture( GL_TEXTURE_2D, texture );
-    glBegin(GL_QUADS);
-
-    glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
-    glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
-    glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
-    glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
-    glEnd();
-    glDisable(GL_TEXTURE_2D);
     
+    ofEnableAlphaBlending();
     
+    if(PropB(@"drawTexture")){
+        ofSetColor(255, 255, 255);
+        
+        glEnable( GL_TEXTURE_2D );
+        glBindTexture( GL_TEXTURE_2D, texture );
+        glBegin(GL_QUADS);
+        
+        glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
+        glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
+        glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
+        glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+        glEnd();
+        glDisable(GL_TEXTURE_2D);
+        
+    }
     
-    ofSetColor(255, 255, 255);
+   ofSetColor(255, 255, 255, 200);
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
-    
+
     glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, 0);
 	glDrawArrays(GL_POINTS, 0, NUM_PARTICLES);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-
+ 
     
-   
- //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
+    
+    //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     ofSetColor(100, 100, 100);
     for(int i=0;i<trackers.size();i++){
         ofCircle(trackers[i].y, 1-trackers[i].x, 0.01);
