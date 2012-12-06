@@ -2,7 +2,6 @@ typedef struct{
 	float2 vel;
 	float2 f;
     float mass;
-//    int texCoord;
 } Particle;
 
 #define COUNT_MULT 20.0f
@@ -83,11 +82,29 @@ kernel void textureForce(global Particle* particles,  global float2 * posBuffer,
     }
 }
 
-kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, const int numParticles, local int * particleCount){
+
+kernel void countParticles(global float2 * posBuffer, global int * countCache,/* local uchar * countLocal, */const int textureWidth){
+    int i = get_global_id(0);
+
+    int x = convert_int((float)posBuffer[i].x*textureWidth);
+    int y = convert_int((float)posBuffer[i].y*textureWidth);
+    
+    int texIndex = y*textureWidth+x;
+    if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
+        atomic_inc(&countCache[texIndex]);
+    }
+}
+
+kernel void resetCountCache(global int * countCache){
+    countCache[get_global_id(0)] = 0;
+}
+
+kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, const int numParticles, local int * particleCount, global int * countCache){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
     int tid = get_local_id(1) * get_local_size(0) + get_local_id(0);
+
     
     int lidx =  get_local_id(0);
     int lidy =  get_local_id(1);
@@ -96,6 +113,8 @@ kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, 
     
     int groupx = get_group_id(0)*get_local_size(0);
     int groupy = get_group_id(1)*get_local_size(1);
+    
+    int global_id = idy*width + idx;
     
   //  int count = 0;
     
@@ -111,7 +130,7 @@ kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, 
         }
     
     }*/
-    
+    /*
     for(int i=tid;i<numParticles;i+=local_size){
         int x = convert_int((float)posBuffer[i].x*width) - groupx;
         int y = convert_int((float)posBuffer[i].y*width) - groupy;
@@ -119,11 +138,16 @@ kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, 
         if(x >= 0 && x < get_local_size(0) && y >= 0 && y < get_local_size(1)){
             int index = y*get_local_size(0)+x;
             atomic_inc(&particleCount[index]);
+//            particleCount[index]++;
         }
-    }
+    }*/
     
+    
+//     particleCount[tid] = countCache[idy*width + idx];
+    /*
     barrier(CLK_LOCAL_MEM_FENCE);
-    
+    //uchar count = countCache[idy*width + idx];
+
     uchar count = particleCount[tid];
     float2 dir = (float2)(0.,0.);
     if(lidx != 0){
@@ -154,6 +178,78 @@ kernel void updateTexture(write_only image2d_t image, global float2* posBuffer, 
   //    float4 color = (float4)(clamp((convert_float(particleCount[tid])/10.0f),0.0f,1.0f),0,0,1);
    // float4 color = (float4)(1,0,0,1);
     write_imagef(image, coords, color);
+    
+    */
+    
+    particleCount[tid] = countCache[global_id];
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    
+
+    
+    uchar count = particleCount[tid];
+    int diff;
+    
+    diff = 0;
+    float2 dir = (float2)(0.,0.);
+    if(lidx != 0){
+        diff = count - particleCount[tid-1];
+    } else if(idx > 0) {
+        diff = count - convert_uchar_sat(countCache[global_id-1]);
+    } 
+    if(diff > 0){
+        dir = (float2)(-0.1*diff,0);
+    }
+
+    diff = 0;
+    if(lidx != get_local_size(0)-1){
+        diff = count - particleCount[tid+1];
+    } else if(idx < width-1){
+        diff = count - convert_uchar_sat(countCache[global_id+1]);
+    }
+    if(diff > 0){
+        dir += (float2)(0.1*diff,0);
+    }
+
+    diff = 0;
+    if(lidy != 0){
+        diff = count - particleCount[tid-get_local_size(0)];
+    } else if(global_id-width > 0){
+        diff = count - convert_uchar_sat(countCache[global_id-width]);
+    }
+    if(diff > 0){
+        dir += (float2)(0,-0.1*diff);
+    }
+
+    diff = 0;
+    if(lidy != get_local_size(1)-1){
+        diff = count - particleCount[tid+get_local_size(0)];
+    } else  if(idy < width-1){
+        diff = count - convert_uchar_sat(countCache[global_id+width]);
+    }
+    if(diff > 0){
+        dir += (float2)(0,0.1*diff);
+    }
+    
+    int2 coords = (int2)(get_global_id(0), get_global_id(1));
+    
+    float countColor = clamp((convert_float(particleCount[tid])/COUNT_MULT),0.0f,1.0f);
+    float4 color = (float4)(countColor,dir.x+0.5,dir.y+0.5,1);
+    //    float4 color = (float4)(clamp((convert_float(particleCount[tid])/10.0f),0.0f,1.0f),0,0,1);
+    // float4 color = (float4)(1,0,0,1);
+    write_imagef(image, coords, color);
+
+    
+    
+   /* int2 coords = (int2)(idx, idy);
+
+    float countColor = clamp((convert_float(countCache[global_id])/COUNT_MULT),0.0f,1.0f);
+    float4 color = (float4)(countColor,0,0,1);
+    write_imagef(image, coords, color);*/
+
+//    countCache[global_id] = 0;
+
 }
 
 kernel void fixTextureWorkgroupEdges(read_only image2d_t readImage, write_only image2d_t writeImage, const int num_groups_x){

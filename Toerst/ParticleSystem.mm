@@ -8,7 +8,7 @@
 
 #import "ParticleSystem.h"
 
-#define TEXTURE_RES (128)
+#define TEXTURE_RES (128*2)
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
@@ -172,6 +172,9 @@ typedef struct{
 		particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
 	}
     
+    int * countCache = (int*)malloc(sizeof(int)*TEXTURE_RES*TEXTURE_RES);
+    memset(countCache, 0, sizeof(int)*TEXTURE_RES*TEXTURE_RES);
+    
     
     //    cout<<"Size: "<<sizeof(Particle)<<endl;
     
@@ -225,6 +228,10 @@ typedef struct{
     
     particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    
+    
+    countCache_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  countCache, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    
     
     dispatch_async(queue,
                    ^{
@@ -297,8 +304,10 @@ int curr_read_index, curr_write_index;
                        };
                        
                        
+                       
+                       
                        if(textureForce){
-                         //  textureForce_kernel(&ndrange, particle_gpu, pos_gpu, texture_gpu, textureForce*0.1);
+                           textureForce_kernel(&ndrange, particle_gpu, pos_gpu, texture_gpu, textureForce*0.1);
                        }
                        
                        for(int i=0;i<trackers.size();i++){
@@ -326,7 +335,8 @@ int curr_read_index, curr_write_index;
                        if(textureForce){
                            //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
                            //   clearTexture_kernel(&ndrangeTex, texture_gpu);
-                           updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES, 1024*sizeof(int) );
+                           countParticles_kernel(&ndrange, pos_gpu, countCache_gpu,  TEXTURE_RES);
+                           updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES, 1024*sizeof(int), countCache_gpu );
                            
                            
                            cl_ndrange ndrangeFixTex = {
@@ -336,7 +346,7 @@ int curr_read_index, curr_write_index;
                                {32*4}
                            };
                            
-                           fixTextureWorkgroupEdges_kernel(&ndrangeFixTex, texture_gpu, texture_gpu, TEXTURE_RES/32);
+                    //       fixTextureWorkgroupEdges_kernel(&ndrangeFixTex, texture_gpu, texture_gpu, TEXTURE_RES/32);
                        }
                        //updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES);
                        //  const size_t origin[3] = { 0, 0, 0 };
@@ -345,6 +355,16 @@ int curr_read_index, curr_write_index;
                        // testTexture_kernel(&ndrangeTex, (cl_image)texture_gpu);
                        
                        
+                       
+                       cl_ndrange ndrangeReset = {
+                           1,
+                           {0, 0, 0},
+                           {TEXTURE_RES*TEXTURE_RES},
+                           {0}
+                       };
+                       
+                       resetCountCache_kernel(&ndrangeReset, countCache_gpu);
+                                              
                        dispatch_semaphore_signal(cl_gl_semaphore);
                        
                    });
