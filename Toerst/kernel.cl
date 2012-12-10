@@ -13,7 +13,8 @@ typedef struct {
     float4 color;
 } ParticleVBO;
 
-#define COUNT_MULT 20.0f
+//#define COUNT_MULT 20.0f
+#define COUNT_MULT 5.0f
 #define FORCE_CACHE_MULT 1000.f
 
 
@@ -29,7 +30,7 @@ void killParticle(global Particle * particle, global ParticleVBO * pos){
 //######################################################
 
 
-kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, const float dt, const float damp, const float minSpeed, const float fadeOutSpeed)
+kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed)
 {
     size_t i = get_global_id(0);
     
@@ -47,8 +48,8 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, c
                 killParticle(p,&posBuffer[i]);
             }
             
-        } else if(posBuffer[i].color.a < 0.2*p->mass){
-            posBuffer[i].color.a += 0.01;
+        } else if(posBuffer[i].color.a < 0.1*p->mass){
+            posBuffer[i].color.a += fadeInSpeed*p->mass;
         }
         
         if(!p->dead){
@@ -113,8 +114,10 @@ kernel void mouseForce(global Particle* particles,  global ParticleVBO* posBuffe
     }
 }
 
-kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer, const float2 addPos, const float mouseRadius, const int numAdd, const numParticles ){
-    
+kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer, const float2 addPos, const float mouseRadius, const int numAdd, const int numParticles ){
+    if(numAdd == 0){
+        return;
+    }
     int id = get_global_id(0);
     int size = get_global_size(0);
     
@@ -125,7 +128,7 @@ kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer,
         float fi = i;
         global Particle * p = &particles[i];
         if(p->dead){
-            float2 offset = (float2)(sin(fi),cos(fi*1.3)) * mouseRadius*0.1 * sin(i*43.73214);
+            float2 offset = (float2)(sin(fi),cos(fi)) * mouseRadius*0.2 * sin(i*43.73214);
             
             p->dead = false;
             p->vel = (float2)(0);
@@ -199,16 +202,78 @@ kernel void sumParticles(global Particle * particles, global ParticleVBO* posBuf
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
             atomic_inc(&countCache[texIndex]);
+          //  atomic_add(&countCache[texIndex],10);
             atomic_add(&forceCache[texIndex*2], particles[i].vel.x*FORCE_CACHE_MULT);
             atomic_add(&forceCache[texIndex*2+1], particles[i].vel.y*FORCE_CACHE_MULT);
         }
     }
 }
+/*
+__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
+__kernel void gaussian_blur(
+                            __read_only image2d_t image,
+                            __constant float * mask,
+                            write_only image2d_t blurredImage,
+                            __private int maskSize
+                            ) {
+    
+    const int2 pos = {get_global_id(0), get_global_id(1)};
+    
+    // Collect neighbor values and multiply with gaussian
+    float3 sum = 0.0f;
+    // Calculate the mask size based on sigma (larger sigma, larger mask)
+    for(int a = -maskSize; a < maskSize+1; a++) {
+        for(int b = -maskSize; b < maskSize+1; b++) {
+            sum += mask[a+maskSize+(b+maskSize)*(maskSize*2+1)]
+            *read_imagef(image, sampler, pos + (int2)(a,b)).xyz;
+        }
+    }
+    
+    write_imagef(blurredImage, pos, (float4)(sum.x,sum.y,sum.z,1) );
+//    blurredImage[pos.x+pos.y*get_global_size(0)] = sum;
+}*/
+
+__kernel void gaussianBlurSum(
+                              global int * forceCache,
+                              global int * forceCacheBlur,
+                              const int textureWidth,
+                              __constant float * mask,
+                              __private int maskSize
+                              ) {
+    
+    int idx = get_global_id(0);
+    int idy = get_global_id(1);
+    int global_id = idy*textureWidth + idx;
+    
+    // Collect neighbor values and multiply with Gaussian
+    float2 sum = (float2)(0.0f,0.0f);
+    for(int a = -maskSize; a < maskSize+1; a++) {
+        for(int b = -maskSize; b < maskSize+1; b++) {
+            
+            if(idx+a > 0 && idy+b > 0 && idx+a < textureWidth && idx+b < textureWidth){
+                int global_id_2 = (idy+b)*textureWidth + (idx+a);
+                float2 force = (float2)(forceCache[global_id_2*2], forceCache[global_id_2*2+1]);
+//                float2 force =  (float2)(1000,0);
+                sum += mask[ a + maskSize+(b+maskSize)*(maskSize*2+1)]* force; //read_imagef(image, sampler, pos + (int2)(a,b)).x;
+                
+//                sum +=
+            }
+        }
+    }
+    
+    //barrier(CLK_GLOBAL_MEM_FENCE);
+    //forceCache[global_id*2]++;
+    forceCacheBlur[global_id*2] = convert_int_sat(sum.x);
+    forceCacheBlur[global_id*2+1] = convert_int(sum.y);;
+    //blurredImage[pos.x+pos.y*get_global_size(0)] = sum;
+}
 
 //######################################################
 //  Texture Kernels
 //######################################################
+
+
 
 
 kernel void resetCountCache(global int * countCache, global int * forceCache){
@@ -227,10 +292,10 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceCac
     
     
     float4 color = (float4)(0,0,0,1);
-    color += (float4)(1,0,0,0)*max(0.f , force.x*0.1f);
-    color -= (float4)(0,0,1,0)*min(0.f , force.x*0.1f);
-    color += (float4)(1,1,0,0)*max(0.f , force.y*0.1f);
-    color -= (float4)(0,1,0,0)*min(0.f , force.y*0.1f);
+    color += (float4)(1,0,0,0)*max(0.f , force.x*0.5f);
+    color -= (float4)(0,0,1,0)*min(0.f , force.x*0.5f);
+    color += (float4)(1,1,0,0)*max(0.f , force.y*0.5f);
+    color -= (float4)(0,1,0,0)*min(0.f , force.y*0.5f);
     
     write_imagef(image, coords, color);
     

@@ -15,6 +15,8 @@
     GLuint				vbo;
     GLuint              texture;
     GLuint              forceTexture;
+//    GLuint              texture_blur;
+  //  GLuint              forceTexture_blur;
 
     
     dispatch_queue_t queue;
@@ -24,13 +26,20 @@
     ParticleVBO * pos_gpu;
     Particle* particle_gpu;
     cl_image texture_gpu;
+//    cl_image texture_blur_gpu;
     cl_image forceTexture_gpu;
+  //  cl_image forceTexture_blur_gpu;
     cl_int * countCache_gpu;
     cl_int * forceCache_gpu;
+    cl_int * forceCacheBlur_gpu;
+    cl_float * mask_gpu;
     
     BOOL firstLoop;
     
     float _clTime;
+    
+    int maskSize;
+
 }
 
 @property (readwrite) float clTime;
