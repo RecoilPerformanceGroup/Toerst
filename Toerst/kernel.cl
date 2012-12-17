@@ -5,6 +5,8 @@ typedef struct{
     //int2 texCoord;
     uint age;
     bool dead;
+    float2 pos;
+   // float4 dummy;
     
 } Particle;
 
@@ -13,7 +15,8 @@ typedef struct {
     float4 color;
 } ParticleVBO;
 
-#define COUNT_MULT 100.0f
+//#define COUNT_MULT 100.0f
+#define COUNT_MULT 5.0f
 //#define COUNT_MULT 5.0f
 #define FORCE_CACHE_MULT 1000.f
 
@@ -63,7 +66,10 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, c
             if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
                 p->f = (float2)(0,0);
                 
-                posBuffer[i].pos += p->vel * dt;
+                float2 pos = posBuffer[i].pos + p->vel * dt;
+                
+                posBuffer[i].pos = pos;
+                p->pos = pos;
                 
                 if(posBuffer[i].pos.x >= 1){
                     //            p->vel.x *= -1;
@@ -97,12 +103,12 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, c
 }
 
 
-kernel void mouseForce(global Particle* particles,  global ParticleVBO* posBuffer, const float2 mousePos, const float mouseForce, float mouseRadius){
+kernel void mouseForce(global Particle* particles,  const float2 mousePos, const float mouseForce, float mouseRadius){
     int id = get_global_id(0);
 	global Particle *p = &particles[id];
     if(!p->dead){
         
-        float2 diff = mousePos - posBuffer[id].pos;
+        float2 diff = mousePos - p->pos;
         float dist = fast_length(diff);
         if(dist < mouseRadius){
             float invDistSQ = 1.0f / dist;
@@ -190,25 +196,61 @@ kernel void forceTextureForce(global Particle* particles,  global ParticleVBO* p
     }
 }
 
-kernel void sumParticles(global Particle * particles, global ParticleVBO* posBuffer, global int * countCache, global int * forceCache, const int textureWidth){
-    global Particle *p = &particles[get_global_id(0)];
+kernel void sumParticles(global Particle * particles, global int * countCache, global int * forceCache, const int textureWidth){
+   global Particle *p = &particles[get_global_id(0)];
     if(!p->dead){
         
         int i = get_global_id(0);
         
-        int x = convert_int((float)posBuffer[i].pos.x*textureWidth);
-        int y = convert_int((float)posBuffer[i].pos.y*textureWidth);
+        int x = convert_int((float)p->pos.x*textureWidth);
+        int y = convert_int((float)p->pos.y*textureWidth);
         int texIndex = y*textureWidth+x;
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
             atomic_inc(&countCache[texIndex]);
-          //  atomic_add(&countCache[texIndex],10);
-            atomic_add(&forceCache[texIndex*2], particles[i].vel.x*FORCE_CACHE_MULT);
-            atomic_add(&forceCache[texIndex*2+1], particles[i].vel.y*FORCE_CACHE_MULT);
+            atomic_add(&forceCache[texIndex*2], p->vel.x*FORCE_CACHE_MULT);
+            atomic_add(&forceCache[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT);
         }
     }
 }
 
+
+/*
+kernel void sumParticles2(global Particle * particles, global ParticleVBO* posBuffer, global int * countCache, global int * forceCache, const int numParticles, local int * localArea ){
+    
+    int textureWidth = get_global_size(0);
+    int localSize = get_local_size(0);
+    int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
+    
+    int gx = get_group_id(0)*localSize;
+    int gy = get_group_id(1)*localSize;
+    
+    for(int i=lid;i<numParticles;i+= localSize*localSize){
+
+        int x = convert_int((float)posBuffer[i].pos.x*textureWidth);
+        int y = convert_int((float)posBuffer[i].pos.y*textureWidth);
+        int texIndex = y*textureWidth+x;
+        
+        if(texIndex >= 0
+           && texIndex < textureWidth*textureWidth
+           && x >= gx
+           && x < gx+localSize
+           && y >= gy
+           && y < gy+localSize){
+            int lTexIndex = (y-gy)*localSize + (x-gx);
+            
+            localArea[lTexIndex] ++;
+//            atomic_inc(&countCache[texIndex]);
+//            
+//            atomic_add(&forceCache[texIndex*2], p->vel.x*FORCE_CACHE_MULT);
+//            atomic_add(&forceCache[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT);
+        }
+    }
+    
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+}
+*/
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 __kernel void gaussian_blur(

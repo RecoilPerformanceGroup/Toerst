@@ -7,12 +7,13 @@
 //
 
 #import <ofxCocoaPlugins/ofxCocoaPlugins.h>
+#import <CorePlot/CorePlot.h>
 
 #import <OpenCL/OpenCL.h>
 #import "kernel.cl.h"
 #import "Shader.h"
 
-@interface ParticleSystem : ofPlugin{
+@interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate>{
     GLuint				vbo;
     GLuint              texture;
     GLuint              forceTexture;
@@ -45,6 +46,13 @@
     int             maskSize;
     
 
+    IBOutlet CPTGraphHostingView *graphView;
+    CPTXYGraph *graph;
+    NSMutableArray *plotData;
+    CPTFill *areaFill;
+    CPTLineStyle *barLineStyle;
+    NSUInteger currentIndex;
+    NSTimer * dataTimer;
 
 }
 

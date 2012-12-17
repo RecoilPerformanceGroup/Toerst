@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
+		DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDB1B969167F400A00B44795 /* CorePlot.framework */; };
+		DDB1B97C167F41B700B44795 /* CorePlot.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = DDB1B969167F400A00B44795 /* CorePlot.framework */; };
 		DDF06200167752150014D3CE /* diffuse.fs in Sources */ = {isa = PBXBuildFile; fileRef = DDF061FD167752150014D3CE /* diffuse.fs */; };
 		DDF06202167752150014D3CE /* diffuse.vs in Sources */ = {isa = PBXBuildFile; fileRef = DDF061FF167752150014D3CE /* diffuse.vs */; };
 		DDF06203167752B20014D3CE /* Shader.m in Sources */ = {isa = PBXBuildFile; fileRef = DDF061F4167745620014D3CE /* Shader.m */; };
@@ -36,6 +38,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				DDFCE931164AA00F000DBD4D /* ofxCocoaPlugins.framework in CopyFiles */,
+				DDB1B97C167F41B700B44795 /* CorePlot.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,6 +47,7 @@
 /* Begin PBXFileReference section */
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
+		DDB1B969167F400A00B44795 /* CorePlot.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = CorePlot.framework; sourceTree = "<group>"; };
 		DDF061F3167745620014D3CE /* Shader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Shader.h; sourceTree = "<group>"; };
 		DDF061F4167745620014D3CE /* Shader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Shader.m; sourceTree = "<group>"; };
 		DDF061FD167752150014D3CE /* diffuse.fs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = diffuse.fs; sourceTree = "<group>"; };
@@ -78,6 +82,7 @@
 				DDFCE947164AA4E0000DBD4D /* OpenCL.framework in Frameworks */,
 				DDFCE92F164A9FCB000DBD4D /* ofxCocoaPlugins.framework in Frameworks */,
 				DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */,
+				DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +101,7 @@
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
+				DDB1B969167F400A00B44795 /* CorePlot.framework */,
 				DD098341164C020700CA6147 /* OpenGL.framework */,
 				DDFCE946164AA4E0000DBD4D /* OpenCL.framework */,
 				DDFCE93F164AA14E000DBD4D /* Project.xcconfig */,
@@ -334,6 +340,7 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
+					"\"$(SRCROOT)\"",
 				);
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -353,6 +360,7 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
+					"\"$(SRCROOT)\"",
 				);
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
