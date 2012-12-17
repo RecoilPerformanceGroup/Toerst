@@ -13,8 +13,8 @@ typedef struct {
     float4 color;
 } ParticleVBO;
 
-//#define COUNT_MULT 20.0f
-#define COUNT_MULT 5.0f
+#define COUNT_MULT 100.0f
+//#define COUNT_MULT 5.0f
 #define FORCE_CACHE_MULT 1000.f
 
 
@@ -134,7 +134,7 @@ kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer,
             p->vel = (float2)(0);
             p->age = 0;
             posBuffer[i].pos = addPos + offset;
-            posBuffer[i].color = (float4)(1,1,1,0);
+          //  posBuffer[i].color = (float4)(1,1,1,0);
             added ++;
         }
         
@@ -154,13 +154,13 @@ kernel void textureForce(global Particle* particles,  global ParticleVBO* posBuf
         float2 texCoord = ((posBuffer[id].pos*(float2)(width,width)));
         float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
         
-        float count = pixel.x-1.0/COUNT_MULT;
-        if(count > 0.0 && count <= 1.0){
+        float count = pixel.x;//-1.0/COUNT_MULT;
+        if(count > 0.0){// && count <= 1.0){
             float2 dir = (float2)(pixel.y-0.5, pixel.z-0.5);
             
-            if(fast_length(dir) > 0.2){
-                p->f += dir* (float2)(0.1 * force )*(float2)(p->mass-0.5);
-            }
+//            if(fast_length(dir) > 0.2){
+                p->f += dir* (float2)(10.0 * force )*(float2)(p->mass-0.3);
+//            }
         }
     }
 }
@@ -208,7 +208,7 @@ kernel void sumParticles(global Particle * particles, global ParticleVBO* posBuf
         }
     }
 }
-/*
+
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 __kernel void gaussian_blur(
@@ -219,20 +219,21 @@ __kernel void gaussian_blur(
                             ) {
     
     const int2 pos = {get_global_id(0), get_global_id(1)};
+    float4 pixel = read_imagef(image, sampler, pos);
     
     // Collect neighbor values and multiply with gaussian
-    float3 sum = 0.0f;
+    float2 sum = 0.0f;
     // Calculate the mask size based on sigma (larger sigma, larger mask)
     for(int a = -maskSize; a < maskSize+1; a++) {
         for(int b = -maskSize; b < maskSize+1; b++) {
             sum += mask[a+maskSize+(b+maskSize)*(maskSize*2+1)]
-            *read_imagef(image, sampler, pos + (int2)(a,b)).xyz;
+            *read_imagef(image, sampler, pos + (int2)(a,b)).yz;
         }
     }
     
-    write_imagef(blurredImage, pos, (float4)(sum.x,sum.y,sum.z,1) );
+    write_imagef(blurredImage, pos, (float4)(pixel.x,sum.x,sum.y,1) );
 //    blurredImage[pos.x+pos.y*get_global_size(0)] = sum;
-}*/
+}
 
 __kernel void gaussianBlurSum(
                               global int * forceCache,
@@ -332,48 +333,71 @@ kernel void updateTexture(write_only image2d_t image, global ParticleVBO* posBuf
     
     
     uchar count = particleCount[tid];
-    int diff;
+    int diff[4];
     
-    diff = 0;
     float2 dir = (float2)(0.,0.);
+    int minDiff = 10;
+    
+    diff[0] = 0;
     if(lidx != 0){
-        diff = count - particleCount[tid-1];
+        diff[0] = count - particleCount[tid-1];
     } else if(idx > 0) {
-        diff = count - convert_uchar_sat(countCache[global_id-1]);
-    }
-    if(diff > 0){
-        dir = (float2)(-0.1*diff,0);
+        diff[0] = count - convert_uchar_sat(countCache[global_id-1]);
     }
     
-    diff = 0;
+    diff[1] = 0;
     if(lidx != get_local_size(0)-1){
-        diff = count - particleCount[tid+1];
+        diff[1] = count - particleCount[tid+1];
     } else if(idx < width-1){
-        diff = count - convert_uchar_sat(countCache[global_id+1]);
-    }
-    if(diff > 0){
-        dir += (float2)(0.1*diff,0);
+        diff[1] = count - convert_uchar_sat(countCache[global_id+1]);
     }
     
-    diff = 0;
+    diff[2] = 0;
     if(lidy != 0){
-        diff = count - particleCount[tid-get_local_size(0)];
+        diff[2] = count - particleCount[tid-get_local_size(0)];
     } else if(global_id-width > 0){
-        diff = count - convert_uchar_sat(countCache[global_id-width]);
-    }
-    if(diff > 0){
-        dir += (float2)(0,-0.1*diff);
+        diff[2] = count - convert_uchar_sat(countCache[global_id-width]);
     }
     
-    diff = 0;
+    diff[3] = 0;
     if(lidy != get_local_size(1)-1){
-        diff = count - particleCount[tid+get_local_size(0)];
+        diff[3] = count - particleCount[tid+get_local_size(0)];
     } else  if(idy < width-1){
-        diff = count - convert_uchar_sat(countCache[global_id+width]);
+        diff[3] = count - convert_uchar_sat(countCache[global_id+width]);
     }
-    if(diff > 0){
-        dir += (float2)(0,0.1*diff);
+
+    
+    
+    int num = 0;
+    int _diff = diff[0];
+    for(int i=1;i<4;i++){
+        if(diff[i] > diff[num]){
+            _diff = diff[i];
+            num = i;
+        }
     }
+    
+    
+    if(_diff > minDiff){
+        switch(num){
+            case 0:
+                dir = (float2)(-0.1*_diff,0);
+                break;
+            case 1:
+                dir += (float2)(0.1*_diff,0);
+                break;
+            case 2:
+                dir += (float2)(0,-0.1*_diff);
+                break;
+            case 3:
+                dir += (float2)(0,0.1*_diff);
+                break;
+            default:
+                break;
+        }
+    }
+    
+
     
     /* if(idx == 0 || idx == 1 || idx == width-1)
      dir = (float2)(0,0);
@@ -381,8 +405,19 @@ kernel void updateTexture(write_only image2d_t image, global ParticleVBO* posBuf
     
     int2 coords = (int2)(get_global_id(0), get_global_id(1));
     
+    dir *= 0.05;
+    
     float countColor = clamp((convert_float(particleCount[tid])/COUNT_MULT),0.0f,1.0f);
     float4 color = (float4)(countColor,dir.x+0.5,dir.y+0.5,1);
+    if(dir.x > 0.5 || dir.x < -0.5 ){
+        color = (float4)(0,0,1,1);
+    }
+    if( dir.y > 0.5 || dir.y < -0.5 ){
+        color = (float4)(0,1,0,1);
+    }
+    if((particleCount[tid]/COUNT_MULT) > 1.0){
+        color = (float4)(1,1,1,1);
+    }
     //    float4 color = (float4)(clamp((convert_float(particleCount[tid])/10.0f),0.0f,1.0f),0,0,1);
     // float4 color = (float4)(1,0,0,1);
     write_imagef(image, coords, color);

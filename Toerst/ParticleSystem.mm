@@ -8,7 +8,7 @@
 
 #import "ParticleSystem.h"
 
-#define TEXTURE_RES (1024)
+#define TEXTURE_RES (1024/2)
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
@@ -65,6 +65,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
     
+    [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
+    [[self addPropF:@"lightY"] setMinValue:-1 maxValue:1];
+    [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
     
  
 }
@@ -84,14 +87,16 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 		p.vel.s[1] = 0;//ofRandom(-1,1);
 		p.mass = ofRandom(0.5, 1);
 
-        p.dead = YES;
+        p.dead = NO;
         
 	//	particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
-        particlesVboData[i].pos.s[0] = -1;
-        particlesVboData[i].pos.s[1] = -1;
-        particlesVboData[i].color.s[0] = 0.5;
-        particlesVboData[i].color.s[1] = 0.5;
-        particlesVboData[i].color.s[2] = 0.0;
+/*        particlesVboData[i].pos.s[0] = -1;
+        particlesVboData[i].pos.s[1] = -1;*/
+        particlesVboData[i].pos.s[0] = ofRandom(1);
+        particlesVboData[i].pos.s[1] = ofRandom(1);
+        particlesVboData[i].color.s[0] = 1;
+        particlesVboData[i].color.s[1] = 1;
+        particlesVboData[i].color.s[2] = 1;
         particlesVboData[i].color.s[3] = 0.5;
     }
     
@@ -127,7 +132,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
 
-   /* glGenTextures( 1, &texture_blur );
+    glGenTextures( 1, &texture_blur );
     glBindTexture(GL_TEXTURE_2D,texture_blur); // Set our Tex handle as current
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -135,7 +140,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
     
-    
+   /*
     glGenTextures( 1, &forceTexture_blur );
     glBindTexture(GL_TEXTURE_2D,forceTexture_blur); // Set our Tex handle as current
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -145,7 +150,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
     
     
-   */ 
+   */
     
     
     //Shared context
@@ -162,9 +167,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
     texture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture);
     forceTexture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture);
-    //    texture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture_blur);
+        texture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture_blur);
     //    forceTexture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture_blur);
-
     
     particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
@@ -174,19 +178,15 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     forceCache_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     
-    float * mask =createBlurMask(1.2f, &maskSize);
+    float * mask =createBlurMask(2.0f, &maskSize);
     cout<<"Mask size: "<<maskSize<<endl;
     mask_gpu = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     
-
     dispatch_async(queue,
                    ^{
                        gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
                        gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
-
                    });
-    
-    
     
     cl_device_id cl_device = gcl_get_device_id_with_dispatch_queue(queue);
     char name[128];
@@ -202,7 +202,16 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
    // clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES)
     
     
-    
+    diffuse = [[Shader alloc] initWithShadersInAppBundle:@"diffuse"];
+    if(diffuse){
+        programObject = [diffuse programObject];
+        
+        glUseProgramObjectARB(programObject);
+        shaderLocations[0] = [diffuse getUniformLocation:"light"];
+        
+        glUseProgramObjectARB(NULL);
+
+    }
 }
 
 int curr_read_index, curr_write_index;
@@ -295,7 +304,7 @@ int curr_read_index, curr_write_index;
                            }
                        }
                        
-                       update_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu , generalDt* 1.0/60.0, 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01);
+                      update_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu , generalDt* 1.0/60.0, 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01);
 
                        
                        //dispatch_group_leave(group);
@@ -316,13 +325,13 @@ int curr_read_index, curr_write_index;
 
                        
 
-                       if(textureForce){
+                       //if(textureForce){
                            //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
                            
                            updateTexture_kernel(&ndrangeTex, texture_gpu, pos_gpu, NUM_PARTICLES, 1024*sizeof(int), countCache_gpu );
-                           //gaussian_blur_kernel(&ndrangeTexNDef, texture_gpu, mask_gpu, texture_blur_gpu, maskSize);
+                           gaussian_blur_kernel(&ndrangeTexNDef, texture_gpu, mask_gpu, texture_blur_gpu, maskSize);
                            
-                       }
+                      // }
                        
                        if(drawForceTexture){
                            updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceCacheBlur_gpu);
@@ -348,7 +357,8 @@ int curr_read_index, curr_write_index;
     dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
     
     ofEnableAlphaBlending();
-    
+    ofBackground(0.0*255,0.0*255,0.0*255);
+
     if(PropB(@"drawTexture")){
         ofSetColor(255, 255, 255);
         
@@ -380,6 +390,27 @@ int curr_read_index, curr_write_index;
     }
     NSDate * time = [NSDate date];
     
+    
+    
+    ofSetColor(255,255,255);
+    //Shader
+    glUseProgramObjectARB(programObject);
+	
+	//glUniform1fvARB(locations[kUniformOffset], 1, &offset);
+	glUniform3fARB(shaderLocations[0], PropF(@"lightX"), PropF(@"lightY"), PropF(@"lightZ"));
+
+    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_2D, texture_blur );
+
+    /*glBegin(GL_QUADS);
+    
+    glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
+    glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
+    glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
+    glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+    glEnd();
+    */
+    
 //   ofSetColor(255, 255, 255, 100);
     glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
 
@@ -393,6 +424,14 @@ int curr_read_index, curr_write_index;
     glDisableClientState(GL_VERTEX_ARRAY);
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+    
+
+	
+    glDisable(GL_TEXTURE_2D);
+
+    // Unbind the shader
+	glUseProgramObjectARB(NULL);
+
  
     self.clTime =  1000.0*[time timeIntervalSinceNow];
 

@@ -9,6 +9,11 @@
 /* Begin PBXBuildFile section */
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
+		DDF06200167752150014D3CE /* diffuse.fs in Sources */ = {isa = PBXBuildFile; fileRef = DDF061FD167752150014D3CE /* diffuse.fs */; };
+		DDF06202167752150014D3CE /* diffuse.vs in Sources */ = {isa = PBXBuildFile; fileRef = DDF061FF167752150014D3CE /* diffuse.vs */; };
+		DDF06203167752B20014D3CE /* Shader.m in Sources */ = {isa = PBXBuildFile; fileRef = DDF061F4167745620014D3CE /* Shader.m */; };
+		DDF06204167753BA0014D3CE /* diffuse.fs in Resources */ = {isa = PBXBuildFile; fileRef = DDF061FD167752150014D3CE /* diffuse.fs */; };
+		DDF06205167753BD0014D3CE /* diffuse.vs in Resources */ = {isa = PBXBuildFile; fileRef = DDF061FF167752150014D3CE /* diffuse.vs */; };
 		DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE908164A9F78000DBD4D /* Cocoa.framework */; };
 		DDFCE913164A9F78000DBD4D /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE911164A9F78000DBD4D /* InfoPlist.strings */; };
 		DDFCE915164A9F78000DBD4D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE914164A9F78000DBD4D /* main.m */; };
@@ -39,6 +44,10 @@
 /* Begin PBXFileReference section */
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
+		DDF061F3167745620014D3CE /* Shader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Shader.h; sourceTree = "<group>"; };
+		DDF061F4167745620014D3CE /* Shader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Shader.m; sourceTree = "<group>"; };
+		DDF061FD167752150014D3CE /* diffuse.fs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = diffuse.fs; sourceTree = "<group>"; };
+		DDF061FF167752150014D3CE /* diffuse.vs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = diffuse.vs; sourceTree = "<group>"; };
 		DDFCE904164A9F78000DBD4D /* Toerst.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Toerst.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDFCE908164A9F78000DBD4D /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		DDFCE90B164A9F78000DBD4D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -75,6 +84,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DDF061FC167752150014D3CE /* shader */ = {
+			isa = PBXGroup;
+			children = (
+				DDF061FD167752150014D3CE /* diffuse.fs */,
+				DDF061FF167752150014D3CE /* diffuse.vs */,
+			);
+			path = shader;
+			sourceTree = "<group>";
+		};
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
@@ -118,6 +136,8 @@
 		DDFCE90E164A9F78000DBD4D /* Toerst */ = {
 			isa = PBXGroup;
 			children = (
+				DDF061F3167745620014D3CE /* Shader.h */,
+				DDF061F4167745620014D3CE /* Shader.m */,
 				DDFCE91A164A9F78000DBD4D /* AppDelegate.h */,
 				DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */,
 				DDFCE941164AA40E000DBD4D /* ParticleSystem.h */,
@@ -125,6 +145,7 @@
 				DD5E59C0166CE63900741B57 /* ParticleSystem.xib */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
 				DDFCE944164AA4B8000DBD4D /* kernel.cl */,
+				DDF061FC167752150014D3CE /* shader */,
 				DDFCE90F164A9F78000DBD4D /* Supporting Files */,
 			);
 			path = Toerst;
@@ -199,6 +220,8 @@
 				DDFCE91F164A9F78000DBD4D /* MainMenu.xib in Resources */,
 				DDFCE940164AA14E000DBD4D /* Project.xcconfig in Resources */,
 				DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */,
+				DDF06205167753BD0014D3CE /* diffuse.vs in Resources */,
+				DDF06204167753BA0014D3CE /* diffuse.fs in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -212,7 +235,10 @@
 				DDFCE915164A9F78000DBD4D /* main.m in Sources */,
 				DDFCE91C164A9F78000DBD4D /* AppDelegate.mm in Sources */,
 				DDFCE943164AA40E000DBD4D /* ParticleSystem.mm in Sources */,
+				DDF06203167752B20014D3CE /* Shader.m in Sources */,
 				DDFCE945164AA4B8000DBD4D /* kernel.cl in Sources */,
+				DDF06200167752150014D3CE /* diffuse.fs in Sources */,
+				DDF06202167752150014D3CE /* diffuse.vs in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

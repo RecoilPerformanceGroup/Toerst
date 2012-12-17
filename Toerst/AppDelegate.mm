@@ -15,7 +15,7 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     ocp = [[ofxCocoaPlugins alloc] initWithAppDelegate:self];
-    //   [ocp setNumberOutputviews:0];
+//       [ocp setNumberOutputviews:2];
     
     [ocp addHeader:@"Setup"];
     
