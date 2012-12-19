@@ -12,7 +12,7 @@
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
-#define NUM_PARTICLES (1024*1500)
+#define NUM_PARTICLES (1024*2000)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 
 
@@ -22,6 +22,9 @@ static NSString *updateIdentifier = @"Update";
 static NSString *updateTextureIdentifier = @"Update Texture";
 static NSString *sumIdentifier = @"Sum";
 static NSString *forceIdentifier = @"Forces";
+static NSString *inactiveIdentifier = @"Inactive Particles";
+static NSString *activeIdentifier = @"Active Particles";
+static NSString *deadIdentifier = @"Dead Particles";
 /*
  
  typedef struct{
@@ -58,7 +61,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     firstLoop = YES;
     
     [[self addPropF:@"mouseForce"] setMaxValue:10];
-    [[self addPropF:@"mouseAdd"] setMaxValue:50];
+    [[self addPropF:@"mouseAdd"] setMaxValue:500];
     [self addPropF:@"mouseRadius"];
     [self addPropF:@"generalDt"];
     [[self addPropF:@"generalUpdateFraction"] setMinValue:0.1 maxValue:1.0];
@@ -72,14 +75,19 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
     
-    [[self addPropF:@"forceTextureForce"] setMaxValue:2.0];
+    [[self addPropF:@"forceTextureForce"] setMaxValue:10.0];
     [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
     
     [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
     [[self addPropF:@"lightY"] setMinValue:-1 maxValue:1];
     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
-    
+    [self addPropF:@"shaderDiffuse"] ;
+    [[self addPropF:@"shaderGain"] setMaxValue:10.0];
+
+    [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
+    [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
+
     
 }
 
@@ -108,13 +116,13 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     textStyle.fontName      = @"Helvetica";
     graph.title             = @"Profiling";
     graph.titleTextStyle    = textStyle;
-    graph.titleDisplacement = CGPointMake(0.0f, -20.0f);
+    graph.titleDisplacement = CGPointMake(0.0f, -0.0f);
     
     
     // Setup scatter plot space
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)graph.defaultPlotSpace;
     plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(0) length:CPTDecimalFromFloat(5.0f)];
-    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(0) length:CPTDecimalFromFloat(1.0)];
+    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(0) length:CPTDecimalFromFloat(1.1)];
     
     
     // Axes
@@ -134,7 +142,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     
     // Create a plot that uses the data source method
-    for(int i=0;i<5;i++){
+    for(int i=0;i<8;i++){
         CPTScatterPlot *dataSourceLinePlot = [[[CPTScatterPlot alloc] init] autorelease];
         CPTMutableLineStyle *lineStyle = [[dataSourceLinePlot.dataLineStyle mutableCopy] autorelease];
         lineStyle.lineWidth              = 1.0;
@@ -163,7 +171,36 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
                 dataSourceLinePlot.identifier = forceIdentifier;
                 lineStyle.lineColor              = [CPTColor orangeColor];
                 break;
-
+                
+            case 5:
+                dataSourceLinePlot.identifier = activeIdentifier;
+                lineStyle.lineColor              = [CPTColor colorWithComponentRed:0.0 green:0.5 blue:0.0 alpha:1.0] ;
+                lineStyle.dashPattern = [NSArray arrayWithObjects:
+                                         [NSNumber numberWithFloat:5.0f],
+                                         [NSNumber numberWithFloat:5.0f],
+                                         nil];
+                
+                break;
+                
+            case 6:
+                dataSourceLinePlot.identifier = inactiveIdentifier;
+                lineStyle.lineColor              = [[CPTColor orangeColor] colorWithAlphaComponent:0.8];
+                lineStyle.dashPattern = [NSArray arrayWithObjects:
+                                         [NSNumber numberWithFloat:5.0f],
+                                         [NSNumber numberWithFloat:5.0f],
+                                         nil];
+                
+                break;
+                
+            case 7:
+                dataSourceLinePlot.identifier = deadIdentifier;
+                lineStyle.lineColor              = [[CPTColor redColor] colorWithAlphaComponent:0.5];
+                lineStyle.dashPattern = [NSArray arrayWithObjects:
+                                         [NSNumber numberWithFloat:5.0f],
+                                         [NSNumber numberWithFloat:5.0f],
+                                         nil];
+                break;
+                
             default:
                 break;
         }
@@ -195,7 +232,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     graph.legend.borderLineStyle = x.axisLineStyle;
     graph.legend.cornerRadius    = 5.0;
     //    graph.legend.swatchSize      = CGSizeMake(25.0, 25.0);
-    graph.legendAnchor           = CPTRectAnchorTopRight;
+    graph.legendAnchor           = CPTRectAnchorTopLeft;
     graph.legendDisplacement     = CGPointMake(0.0, 0.0);
     
     /* dataTimer = [[NSTimer timerWithTimeInterval:1.0 / 10.0
@@ -216,6 +253,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
     particles = (Particle*) malloc(NUM_PARTICLES* sizeof(Particle));
+    counter = (ParticleCounter*) malloc(sizeof(ParticleCounter));
+    
     
     cout<<"Particle size: "<<sizeof(Particle)<<endl;
     
@@ -226,7 +265,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 		p.mass = ofRandom(0.5, 1);
         p.pos.s[0] = ofRandom(1);
         p.pos.s[1] = ofRandom(1);
-        p.dead = NO;
+        p.dead = YES;
+        p.inactive = NO;
         
         //	particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
         /*        particlesVboData[i].pos.s[0] = -1;
@@ -238,6 +278,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         particlesVboData[i].color.s[2] = 1;
         particlesVboData[i].color.s[3] = 0.5;
     }
+    
+    counter->activeParticles = 0;
+    counter->deadParticles = 0;
+    counter->inactiveParticles = 0;
     
     
     
@@ -254,8 +298,16 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     float * textureData = (float*) malloc(sizeof(float)*TEXTURE_RES*TEXTURE_RES*3);
     memset(textureData, 1.0, TEXTURE_RES*TEXTURE_RES*3*sizeof(float));
     
-    glGenTextures( 1, &texture );
-    glBindTexture(GL_TEXTURE_2D,texture); // Set our Tex handle as current
+    glGenTextures( 1, &texture[0] );
+    glBindTexture(GL_TEXTURE_2D,texture[0]); // Set our Tex handle as current
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
+
+    glGenTextures( 1, &texture[1] );
+    glBindTexture(GL_TEXTURE_2D,texture[1]); // Set our Tex handle as current
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -304,7 +356,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
     
-    texture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture);
+    texture_gpu[0] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[0]);
+    texture_gpu[1] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[1]);
     forceTexture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture);
     texture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture_blur);
     //    forceTexture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture_blur);
@@ -312,10 +365,11 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
-    
+    countInactiveCache_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCache_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    forceCache_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    forceField_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    counter_gpu = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(2.0f, &maskSize);
     cout<<"Mask size: "<<maskSize<<endl;
@@ -325,6 +379,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
                    ^{
                        gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
                        gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
+                       gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
                    });
     
     cl_device_id cl_device = gcl_get_device_id_with_dispatch_queue(queue);
@@ -336,17 +391,23 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     size_t work_item_size;
     clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(work_item_size), &work_item_size, NULL);
-    printf("Mac device work item sizes: %lu", work_item_size);
+    
+    cl_ulong size;
+    clGetDeviceInfo(cl_device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &size, 0);
+    
+    
+    
+    printf("Mac device work item sizes: %lu  -  max local memory: %llu bytes (%llu ints) \n", work_item_size, size, size/sizeof(cl_int));
     //    clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(work_item_size), work_item_size, NULL);
     // clGetDeviceInfo(cl_device, CL_DEVICE_MAX_WORK_ITEM_SIZES)
-    
-    
     diffuse = [[Shader alloc] initWithShadersInAppBundle:@"diffuse"];
     if(diffuse){
         programObject = [diffuse programObject];
         
         glUseProgramObjectARB(programObject);
         shaderLocations[0] = [diffuse getUniformLocation:"light"];
+        shaderLocations[1] = [diffuse getUniformLocation:"gain"];
+        shaderLocations[2] = [diffuse getUniformLocation:"diffuse"];
         
         glUseProgramObjectARB(NULL);
         
@@ -385,204 +446,237 @@ int curr_read_index, curr_write_index;
     //dispatch_group_t group = dispatch_group_create();
     // dispatch_group_enter(group);
     dispatch_sync(queue,
-                   ^{
-                       cl_timer totalTimer = gcl_start_timer();
-                       
-                       // NSLog(@"%f %f",NUM_PARTICLES_FRAC, PropF(@"generalUpdateFraction"));
-                       
-                       cl_ndrange ndrange = {
-                           1,                     // The number of dimensions to use.
-                           {0, 0, 0},
-                           {NUM_PARTICLES_FRAC, 0, 0},
-                           {0}
-                       };
-                       cl_ndrange ndrangeGaus = {
-                           2,
-                           {0, 0, 0},
-                           {TEXTURE_RES, TEXTURE_RES},
-                           {0}
-                       };
-                       
-                       int wd = 32;
-                       cl_ndrange ndrangeSum = {
-                           2,
-                           {0, 0, 0},
-                           {TEXTURE_RES, TEXTURE_RES},
-                           {wd,wd}
-                       };
-                       
-                       cl_timer sumTimer = gcl_start_timer();
-                       sumParticles_kernel(&ndrange, particle_gpu,countCache_gpu, forceCache_gpu,  TEXTURE_RES);
-                       //sumParticles2_kernel(&ndrangeSum, particle_gpu, pos_gpu, countCache_gpu, forceCache_gpu,NUM_PARTICLES_FRAC, wd*wd*sizeof(int));
-                       double sumTime = gcl_stop_timer(sumTimer);
-                       
-
-
-                       if(forceTextureBlur){
-                           gaussianBlurSum_kernel(&ndrangeGaus,  forceCache_gpu, forceCacheBlur_gpu, TEXTURE_RES, mask_gpu, maskSize);
-                       }
-                       //------------------
-                       // Forces
-                       //------------------
-                       cl_timer forceTimer = gcl_start_timer();
-
-                       if(textureForce){
-                           textureForce_kernel(&ndrange, particle_gpu, pos_gpu, texture_gpu, textureForce*0.1);
-                       }
-                       if(forceTextureForce){
-                           if(forceTextureBlur){
-                               forceTextureForce_kernel(&ndrange, particle_gpu, pos_gpu, forceCacheBlur_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES);
-                           } else {
-                               forceTextureForce_kernel(&ndrange, particle_gpu, pos_gpu, forceCache_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES);
+                  ^{
+                      counter->deadParticles = 0; counter->activeParticles = 0; counter->inactiveParticles = 0;
+                      gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
+                      
+                      cl_timer totalTimer = gcl_start_timer();
+                      
+                      // NSLog(@"%f %f",NUM_PARTICLES_FRAC, PropF(@"generalUpdateFraction"));
+                      
+                      cl_ndrange ndrange = {
+                          1,                     // The number of dimensions to use.
+                          {0, 0, 0},
+                          {NUM_PARTICLES_FRAC, 0, 0},
+                          {0}
+                      };
+                      cl_ndrange ndrangeGaus = {
+                          2,
+                          {0, 0, 0},
+                          {TEXTURE_RES, TEXTURE_RES},
+                          {0}
+                      };
+                      
+                      int wd = 32;
+                      cl_ndrange ndrangeSum = {
+                          2,
+                          {0, 0, 0},
+                          {TEXTURE_RES, TEXTURE_RES},
+                          {wd,wd}
+                      };
+                      cl_ndrange ndrangeTex = {
+                          2,
+                          {0, 0, 0},
+                          {TEXTURE_RES, TEXTURE_RES},
+                          {32,32,0}
+                      };
+                      
+                      
+                      
+                      /*                       if(forceTextureBlur){
+                       gaussianBlurSum_kernel(&ndrangeGaus,  forceField_gpu, forceCacheBlur_gpu, TEXTURE_RES, mask_gpu, maskSize);
+                       }*/
+                      //------------------
+                      // Forces
+                      //------------------
+                      
+                      
+                      //###############
+                      cl_timer forceTimer = gcl_start_timer();
+                      
+                      if(textureForce){
+                          textureForce_kernel(&ndrange, particle_gpu, texture_gpu[textureFlipFlop], textureForce*0.1);
+                      }
+                      
+                      for(int i=0;i<trackers.size();i++){
+                          cl_float2 mousePos;
+                          mousePos.s[0] = trackers[i].y;
+                          mousePos.s[1] = 1-trackers[i].x;
+                          if(mouseForce){
+                              mouseForce_kernel(&ndrange, (Particle*)particle_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
+                          }
+                          
+                          float n = 100.0f;
+                          if(mouseAdd){
+                              cl_ndrange ndrangeMouse = { 
+                                  1,                     // The number of dimensions to use.
+                                  {0, 0, 0},
+                                  {n, 0, 0},
+                                  {0}
+                              };
+                              
+                              mouseAdd_kernel(&ndrangeMouse, particle_gpu, pos_gpu, mousePos, mouseRadius, mouseAdd, NUM_PARTICLES_FRAC);
+                          }
+                      }
+                      double forceTime = gcl_stop_timer(forceTimer);
+                      //###############
+                      
+                      
+                      //###############
+                      cl_timer updateTimer = gcl_start_timer();
+                      update_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu, countInactiveCache_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      double updateTime = gcl_stop_timer(updateTimer);
+                      //###############
+                      
+                      
+                      
+                      //###############
+                      cl_timer sumTimer = gcl_start_timer();
+                      sumParticles_kernel(&ndrange, particle_gpu,countCache_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu);
+                      //sumParticles2_kernel(&ndrangeSum, particle_gpu, pos_gpu, countCache_gpu, forceField_gpu,NUM_PARTICLES_FRAC, wd*wd*sizeof(int));
+                      double sumTime = gcl_stop_timer(sumTimer);
+                      //###############
+                      
+                      //###############
+                      cl_timer windTimer = gcl_start_timer();
+                      
+                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX"), PropF(@"globalWindY"));
+                      
+                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind));
+                      
+                      double windTime = gcl_stop_timer(windTimer);
+                      
+                      //###############
+                      
+                      
+                      //###############
+                      forceTimer = gcl_start_timer();
+                      if(forceTextureForce){
+                          /*cl_ndrange ndrangeForce = {
+                              1,                     // The number of dimensions to use.
+                              {0, 0, 0},
+                              {NUM_PARTICLES_FRAC, 0, 0},
+                              {1024}
+                          };*/
+                          /* if(forceTextureBlur){
+                           forceTextureForce_kernel(&ndrange, particle_gpu, pos_gpu, forceCacheBlur_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES);
+                           } else*/ {
+                               forceTextureForce_kernel(&ndrange, particle_gpu, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES/*, sizeof(cl_int2)*1024*5*/ );
                                
                            }
-                       }
-                       
-                       for(int i=0;i<trackers.size();i++){
-                           cl_float2 mousePos;
-                           mousePos.s[0] = trackers[i].y;
-                           mousePos.s[1] = 1-trackers[i].x;
-                           if(mouseForce){
-                               mouseForce_kernel(&ndrange, (Particle*)particle_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
-                           }
-                           
-                           float n = 10.0f;
-                           if(mouseAdd){
-                               cl_ndrange ndrangeMouse = {
-                                   1,                     // The number of dimensions to use.
-                                   {0, 0, 0},
-                                   {n, 0, 0},
-                                   {0}
-                               };
-                               
-                               mouseAdd_kernel(&ndrangeMouse, particle_gpu, pos_gpu, mousePos, mouseRadius, mouseAdd, NUM_PARTICLES_FRAC);
-                           }
-                       }
-                       double forceTime = gcl_stop_timer(forceTimer);
+                      }
+                      forceTime += gcl_stop_timer(forceTimer);
+                      //###############
+                      
+                      
+                      
+                      //dispatch_group_leave(group);
+                      
+                      
+    
+                 /*     cl_ndrange ndrangeTexNDef = {
+                          2,
+                          {0, 0, 0},
+                          {TEXTURE_RES, TEXTURE_RES},
+                          {}
+                      };*/
+                      
+                      
+                      
+                      //if(textureForce){
+                      //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
 
-                       
-                       cl_timer updateTimer = gcl_start_timer();
-                       update_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01);
-                       double updateTime = gcl_stop_timer(updateTimer);
-                       
-                       
-                       //dispatch_group_leave(group);
-                       
-                       
-                       cl_ndrange ndrangeTex = {
-                           2,
-                           {0, 0, 0},
-                           {TEXTURE_RES, TEXTURE_RES},
-                           {32,32,0}
-                       };
-                       cl_ndrange ndrangeTexNDef = {
-                           2,
-                           {0, 0, 0},
-                           {TEXTURE_RES, TEXTURE_RES},
-                           {}
-                       };
-                       
-                       
-                       
-                       //if(textureForce){
-                       //  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
-                       cl_timer updateTexTimer = gcl_start_timer();
-                       updateTexture_kernel(&ndrangeTex, texture_blur_gpu, pos_gpu, NUM_PARTICLES_FRAC, 1024*sizeof(int), countCache_gpu );
-                       double updateTexTime = gcl_stop_timer(updateTexTimer);
-                       
-                       // gaussian_blur_kernel(&ndrangeTexNDef, texture_gpu, mask_gpu, texture_blur_gpu, maskSize);
-                       
-                       // }
-                       
-                       if(drawForceTexture){
-                           updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceCacheBlur_gpu);
-                       }
-                       
-                       
-                       
-                       cl_ndrange ndrangeReset = {
-                           1,
-                           {0, 0, 0},
-                           {TEXTURE_RES*TEXTURE_RES},
-                           {0}
-                       };
-                       
-                       resetCountCache_kernel(&ndrangeReset, countCache_gpu, forceCache_gpu);
-                       
-                       
-                       double totalTime = gcl_stop_timer(totalTimer);
-                       
-                       dispatch_semaphore_signal(cl_gl_semaphore);
-                       
-                       if(!firstLoop){
-                           dispatch_async(dispatch_get_main_queue(), ^{
-                               //   self.clTime =  t;//1000.0*[time timeIntervalSinceNow];
-                               //                           cout<<t<<endl;
-                               NSDictionary * dict = @{
-                               totalIdentifier : @(totalTime),
-                               updateIdentifier : @(updateTime),
-                               updateTextureIdentifier :@(updateTexTime),
-                               sumIdentifier : @(sumTime),
-                               forceIdentifier : @(forceTime)
-                               };
-                               [self newData:dict];
-                               //                           cout<<self.clTime<<endl;
-                               
-                           });
-                       }
-                       
-                   });
+                      
+                      //###############
+                      cl_timer updateTexTimer = gcl_start_timer();
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countCache_gpu, countInactiveCache_gpu );
+                      double updateTexTime = gcl_stop_timer(updateTexTimer);
+                      
+                      textureFlipFlop = !textureFlipFlop;
+                      //###############
+
+                      
+                      
+
+
+                      //      gaussian_blur_kernel(&ndrangeTexNDef, texture_gpu, mask_gpu, texture_blur_gpu, maskSize);
+                      
+                      // }
+                      
+                      if(drawForceTexture){
+                          updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceField_gpu);
+                      }
+                      
+                      
+                      
+                      cl_ndrange ndrangeReset = {
+                          1,
+                          {0, 0, 0},
+                          {TEXTURE_RES*TEXTURE_RES},
+                          {0}
+                      };
+                      
+                      resetCountCache_kernel(&ndrangeReset, countCache_gpu, forceField_gpu);
+                      
+                      
+                      double totalTime = gcl_stop_timer(totalTimer);
+                      
+                      
+                      //--------------
+                      
+                      
+                      dispatch_semaphore_signal(cl_gl_semaphore);
+                      
+                      gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                      //cout<<counter->inactiveParticles/(float)NUM_PARTICLES_FRAC<<endl;
+                      
+                      if(!firstLoop){
+                          dispatch_async(dispatch_get_main_queue(), ^{
+                              //   self.clTime =  t;//1000.0*[time timeIntervalSinceNow];
+                              //                           cout<<t<<endl;
+                              NSDictionary * dict = @{
+                              totalIdentifier : @(totalTime),
+                              updateIdentifier : @(updateTime),
+                              updateTextureIdentifier :@(updateTexTime+updateTime),
+                              sumIdentifier : @(sumTime+updateTexTime+updateTime),
+                              forceIdentifier : @(forceTime+sumTime+updateTexTime+updateTime),
+                              activeIdentifier : @(0.1*counter->activeParticles/(float)NUM_PARTICLES_FRAC),
+                              inactiveIdentifier : @(0.1*counter->inactiveParticles/(float)NUM_PARTICLES_FRAC),
+                              deadIdentifier : @(0.1*counter->deadParticles/(float)NUM_PARTICLES_FRAC)
+                              };
+                              [self newData:dict];
+                              //                           cout<<self.clTime<<endl;
+                              
+                          });
+                          
+                      }
+                      
+                      
+                  });
     // Queue CL kernel to dispatch queue.
     
-   // if(!firstLoop)
+    // if(!firstLoop)
     //dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
     
     
     ofEnableAlphaBlending();
     ofBackground(0.0*255,0.0*255,0.0*255);
     
-    if(PropB(@"drawTexture")){
-        ofSetColor(255, 255, 255);
-        
-        glEnable( GL_TEXTURE_2D );
-        glBindTexture( GL_TEXTURE_2D, texture );
-        glBegin(GL_QUADS);
-        
-        glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
-        glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
-        glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
-        glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
-        glEnd();
-        glDisable(GL_TEXTURE_2D);
-        
-    } else if(PropB(@"drawForceTexture")){
-        ofSetColor(255, 255, 255);
-        
-        glEnable( GL_TEXTURE_2D );
-        glBindTexture( GL_TEXTURE_2D, forceTexture);
-        glBegin(GL_QUADS);
-        
-        glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
-        glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
-        glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
-        glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
-        glEnd();
-        glDisable(GL_TEXTURE_2D);
-        
-    }
     //NSDate * time = [NSDate date];
     
     
-   
+    
     ofSetColor(255,255,255);
     //Shader
-    //glUseProgramObjectARB(programObject);
+    glUseProgramObjectARB(programObject);
 	
 	//glUniform1fvARB(locations[kUniformOffset], 1, &offset);
 	glUniform3fARB(shaderLocations[0], PropF(@"lightX"), PropF(@"lightY"), PropF(@"lightZ"));
+    glUniform1fARB(shaderLocations[1], PropF(@"shaderGain"));
+    glUniform1fARB(shaderLocations[2], PropF(@"shaderDiffuse"));
     
     glEnable( GL_TEXTURE_2D );
-    glBindTexture( GL_TEXTURE_2D, texture_blur );
+    glBindTexture( GL_TEXTURE_2D, texture[textureFlipFlop] );
     
     glBegin(GL_QUADS);
     
@@ -615,6 +709,37 @@ int curr_read_index, curr_write_index;
 	glUseProgramObjectARB(NULL);
     
     
+    if(PropB(@"drawTexture")){
+        ofSetColor(255, 255, 255);
+        
+        glEnable( GL_TEXTURE_2D );
+        glBindTexture( GL_TEXTURE_2D, texture[textureFlipFlop] );
+        glBegin(GL_QUADS);
+        
+        glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
+        glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
+        glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
+        glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+        glEnd();
+        glDisable(GL_TEXTURE_2D);
+        
+    } else if(PropB(@"drawForceTexture")){
+        ofSetColor(255, 255, 255);
+        
+        glEnable( GL_TEXTURE_2D );
+        glBindTexture( GL_TEXTURE_2D, forceTexture);
+        glBegin(GL_QUADS);
+        
+        glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
+        glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
+        glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
+        glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+        glEnd();
+        glDisable(GL_TEXTURE_2D);
+        
+    }
+    
+    
     
     
     //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
@@ -624,6 +749,8 @@ int curr_read_index, curr_write_index;
     }
     
     firstLoop = NO;
+    
+    
     
 }
 
@@ -669,9 +796,10 @@ int curr_read_index, curr_write_index;
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)theGraph.defaultPlotSpace;
     NSUInteger location       = (currentIndex >= kMaxDataPoints ? currentIndex - kMaxDataPoints + 1 : 0);
     plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromUnsignedInteger(location)
+                        
                                                     length:CPTDecimalFromUnsignedInteger(kMaxDataPoints - 1)];
     
-    
+    //    plotSpace.yRange.locationDouble = 1.0;
     
     /* [plotSpace scaleToFitPlots:[theGraph allPlots]];
      CPTMutablePlotRange *yRange = [[plotSpace.yRange mutableCopy] autorelease];
