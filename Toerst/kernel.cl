@@ -6,6 +6,7 @@ typedef struct{
     uint age;
     bool dead;
     float2 pos;
+    float alpha;
     bool inactive;
    // float4 dummy;
     
@@ -51,18 +52,29 @@ int getTexIndex(float2 pos, int textureWidth){
 bool particleAgeUpdate(global Particle * p, global float4 * color, const float fadeOutSpeed, const float fadeInSpeed){
     p->age ++;
     
-    if(fadeOutSpeed > 0 && p->age > 100 && fast_length(p->vel) < 0.001 && color->a > 0){
-        color->a -= fadeOutSpeed*(p->mass-0.4);
-        
-        if(color->a < 0){
-            return true;            
-        }
-        
-    } else if(color->a < 0.1*p->mass){
-        color->a += fadeInSpeed*p->mass;
+    p->alpha =  smoothstep(0,1,p->age * fadeInSpeed) - smoothstep(0,1,p->age * fadeOutSpeed);
+    
+    if(p->alpha <= 0){
+        return true;
     }
     
     return false;
+
+    
+//    
+//    
+//    if(fadeOutSpeed > 0 && p->age > 100 /*&&*/ /*fast_length(p->vel) < 0.001 &&*/ && p->alpha > 0){
+//        p->alpha -= fadeOutSpeed*(p->mass-0.4);
+//        
+//        if(p->alpha < 0){
+//            return true;
+//        }
+//
+//    } else if(p->alpha < 0.1*p->mass){
+//        p->alpha += fadeInSpeed*p->mass;
+//    }
+//    
+//    return false;
     
 }
 /*
@@ -181,7 +193,7 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, g
                 }
                 //          posBuffer[i] = (float2)(0.5);
                 
-            } else if(!p->inactive){
+            } else if(!p->inactive && p->alpha == 1){
                 p->inactive = true;
                 
                 int texIndex = getTexIndex(p->pos, textureWidth);
@@ -209,7 +221,7 @@ kernel void mouseForce(global Particle* particles,  const float2 mousePos, const
     }
 }
 
-kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer, const float2 addPos, const float mouseRadius, const int numAdd, const int numParticles ){
+kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer, const float2 addPos, const float mouseRadius, const int numAdd, const int numParticles){
     if(numAdd == 0){
         return;
     }
@@ -229,8 +241,8 @@ kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer,
             p->inactive = false;
             p->vel = (float2)(0);
             p->age = 0;
-            posBuffer[i].pos = addPos + offset;
-            p->pos = addPos + offset;
+            posBuffer[i].pos = addPos + offset;             p->pos = addPos + offset;
+            p->alpha = 0.0;
           //  posBuffer[i].color = (float4)(1,1,1,0);
             added ++;
         }
@@ -239,6 +251,49 @@ kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer,
             break;
     }
     
+}
+
+kernel void rectAdd(global Particle * particles, global ParticleVBO* posBuffer, const float4 rect, const float numAdd, const int numParticles, const float randomSeed,const float randomSeed2){
+    if(numAdd == 0){
+        return;
+    }
+    
+    int id = get_global_id(0);
+    int size = get_global_size(0);
+    
+    int fraction = numParticles / size;
+    
+    int added = 0;
+    for(int i=id*fraction ; i<id*fraction+fraction ; i++){
+        global Particle * p = &particles[i];
+        if(p->dead){
+            float fi = i;
+            //float2 pi = sin(fi*1.1423)*(float2)(sin(fi)*0.5,cos(fi)*0.5)*rect.zw + rect.xy;
+            
+            float x = (convert_int(3.12312f*i*randomSeed) % 1024)/1024.0f;
+            float y = (convert_int(9.0123479*i*randomSeed2) % 1024)/1024.0f;
+            //float x = (i % 100*(randomSeed*100.0f))/(10000.0f*randomSeed);
+            //float y = (i % 143*(randomSeed*100.0f))/(14300.0f*randomSeed);
+            float2 pi = (float2)(x,y);
+            
+            pi *= rect.zw;
+            pi += rect.xy;
+            
+            p->dead = false;
+            p->inactive = false;
+            p->vel = (float2)(0);
+            p->age = 0;
+            posBuffer[i].pos = pi;
+            p->pos = pi;
+            p->alpha = 0.0;
+            //  posBuffer[i].color = (float4)(1,1,1,0);
+            added ++;
+        }
+        
+        if(numAdd == added)
+            break;
+    }
+
 }
 
 kernel void textureForce(global Particle* particles, read_only image2d_t image, const float force){
@@ -326,7 +381,7 @@ kernel void forceTextureForce(global Particle* particles,  global int * forceCac
     }
 }
 
-kernel void sumParticles(global Particle * particles, global int * countCache, global int * forceField, const int textureWidth, global ParticleCounter * counter){
+kernel void sumParticles(global Particle * particles, global int * countCache, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
     global Particle *p = &particles[get_global_id(0)];
     if(!p->dead && !p->inactive){
         int i = get_global_id(0);
@@ -335,9 +390,12 @@ kernel void sumParticles(global Particle * particles, global int * countCache, g
         int texIndex = y*textureWidth+x;
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
-            atomic_inc(&countCache[texIndex]);
-            atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT);
-            atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT);
+           atomic_add(&countCache[texIndex], 1000.0*p->alpha);
+            
+            if(forceFieldParticleInfluence > 0){
+                atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+                atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+            }
         }
     }
     
@@ -501,7 +559,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCount[tid] = countCache[global_id] + countInactiveCache[global_id];
+    particleCount[tid] = countCache[global_id] + countInactiveCache[global_id]*1000.0;
     
     
     //--------
@@ -510,7 +568,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     
     
     
-    uchar count = particleCount[tid];
+    int count = particleCount[tid];
     int diff[4];
     
     float2 dir = (float2)(0.,0.);
@@ -520,28 +578,28 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     if(lidx != 0){
         diff[0] = count - particleCount[tid-1];
     } else if(idx > 0) {
-        diff[0] = count - convert_uchar_sat(countCache[global_id-1]);
+        diff[0] = count - (countCache[global_id-1]+ countInactiveCache[global_id-1]*1000);
     }
     
     diff[1] = 0;
     if(lidx != get_local_size(0)-1){
         diff[1] = count - particleCount[tid+1];
     } else if(idx < width-1){
-        diff[1] = count - convert_uchar_sat(countCache[global_id+1]);
+        diff[1] = count - (countCache[global_id+1]+ countInactiveCache[global_id+1]*1000);
     }
     
     diff[2] = 0;
     if(lidy != 0){
         diff[2] = count - particleCount[tid-get_local_size(0)];
     } else if(global_id-width > 0){
-        diff[2] = count - convert_uchar_sat(countCache[global_id-width]);
+        diff[2] = count - (countCache[global_id-width]+ countInactiveCache[global_id-width]*1000);
     }
     
     diff[3] = 0;
     if(lidy != get_local_size(1)-1){
         diff[3] = count - particleCount[tid+get_local_size(0)];
     } else  if(idy < width-1){
-        diff[3] = count - convert_uchar_sat(countCache[global_id+width]);
+        diff[3] = count - (countCache[global_id+width]+ countInactiveCache[global_id+width]*1000);
     }
 
     
@@ -590,7 +648,9 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     
     dir *= 0.005;
     
-    float countColor = clamp((convert_float(particleCount[tid])/COUNT_MULT),0.0f,1.0f);
+    dir /= 1000.0;
+    
+    float countColor = clamp(((convert_float(particleCount[tid])/1000.0f)/COUNT_MULT),0.0f,1.0f);
 
     float4 color = (float4)(countColor,
                             clamp(dir.x+0.5f , 0.0f, 1.0f),
@@ -604,10 +664,10 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     if( dir.y > 0.5 || dir.y < -0.5 ){
         color = (float4)(0,1,0,1);
     }*/
-    if((particleCount[tid]/COUNT_MULT) > 1.0){
+  /* if((particleCount[tid]/COUNT_MULT) > 1.0){
         color = (float4)(1,1,1,1);
     }
-    
+    */
     float4 read = read_imagef(readimage, sampler, coords);
 
     float4 wcolor = color * 0.5f + read * 0.5f;
@@ -626,9 +686,20 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
 
 
 
-kernel void wind(global int * forceField, const float2 globalWind ){
+kernel void wind(global int * forceField, const float2 globalWind, const float3 pointWind ){
     int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    float x = convert_float(get_global_id(0))/get_global_size(0);
+    float y = convert_float(get_global_id(1))/get_global_size(1);
+
     
     forceField[index*2] += globalWind.x;
     forceField[index*2+1] += globalWind.y;
+    
+    //---
+    float pointDist = distance((float2)(x,y), (float2)(pointWind.x, pointWind.y));
+    float2 pointDir = normalize((float2)(x,y) - (float2)(pointWind.x, pointWind.y)) * 1.0/pointDist;
+    forceField[index*2] += pointDir.x*pointWind.z;
+    forceField[index*2+1] += pointDir.y*pointWind.z;
+   
+    
 }

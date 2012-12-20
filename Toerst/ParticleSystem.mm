@@ -70,11 +70,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropF:@"particleDamp"];
     [self addPropF:@"particleMinSpeed"];
     [self addPropF:@"particleFadeOutSpeed"];
-    [self addPropF:@"particleFadeInSpeed"];
+    [[self addPropF:@"particleFadeInSpeed"] setMaxValue:10.0];
     [self addPropF:@"textureForce"];
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
     
+    [self addPropF:@"forceFieldParticleInfluence"];
     [[self addPropF:@"forceTextureForce"] setMaxValue:10.0];
     [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
@@ -87,6 +88,19 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
+    [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
+    
+    [[self addPropF:@"pointWindX"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"pointWindY"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"pointWind"] setMinValue:0 maxValue:1000];
+    
+    
+    [[self addPropF:@"rectAddX"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"rectAddY"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"rectAddWidth"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"rectAddHeight"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
+
 
     
 }
@@ -428,6 +442,14 @@ int curr_read_index, curr_write_index;
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
     CachePropF(mouseAdd);
+
+    CachePropF(rectAdd);
+    CachePropF(rectAddX);
+    CachePropF(rectAddY);
+    CachePropF(rectAddWidth);
+    CachePropF(rectAddHeight);
+    
+    
     
     CachePropF(particleDamp);
     CachePropF(generalDt);
@@ -438,6 +460,8 @@ int curr_read_index, curr_write_index;
     CachePropF(textureForce);
     
     CachePropF(forceTextureForce);
+    CachePropF(forceFieldParticleInfluence);
+    
     CachePropF(forceTextureMaxForce);
     CachePropB(drawForceTexture);
     CachePropF(forceTextureBlur);
@@ -498,6 +522,13 @@ int curr_read_index, curr_write_index;
                           textureForce_kernel(&ndrange, particle_gpu, texture_gpu[textureFlipFlop], textureForce*0.1);
                       }
                       
+                      float n = 100.0f;
+                      cl_ndrange ndrangeMouse = {
+                          1,                     // The number of dimensions to use.
+                          {0, 0, 0},
+                          {n, 0, 0},
+                          {0}
+                      };
                       for(int i=0;i<trackers.size();i++){
                           cl_float2 mousePos;
                           mousePos.s[0] = trackers[i].y;
@@ -506,17 +537,21 @@ int curr_read_index, curr_write_index;
                               mouseForce_kernel(&ndrange, (Particle*)particle_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
                           }
                           
-                          float n = 100.0f;
                           if(mouseAdd){
-                              cl_ndrange ndrangeMouse = { 
-                                  1,                     // The number of dimensions to use.
-                                  {0, 0, 0},
-                                  {n, 0, 0},
-                                  {0}
-                              };
+                    
                               
                               mouseAdd_kernel(&ndrangeMouse, particle_gpu, pos_gpu, mousePos, mouseRadius, mouseAdd, NUM_PARTICLES_FRAC);
                           }
+                      }
+                      
+                      if(rectAdd){
+                          cl_float4 rect;
+                          rect.s[0] = rectAddX;
+                          rect.s[1] = rectAddY;
+                          rect.s[2] = rectAddWidth;
+                          rect.s[3] = rectAddHeight;
+                          
+                          rectAdd_kernel(&ndrangeMouse, particle_gpu,pos_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
                       }
                       double forceTime = gcl_stop_timer(forceTimer);
                       //###############
@@ -532,7 +567,7 @@ int curr_read_index, curr_write_index;
                       
                       //###############
                       cl_timer sumTimer = gcl_start_timer();
-                      sumParticles_kernel(&ndrange, particle_gpu,countCache_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu);
+                      sumParticles_kernel(&ndrange, particle_gpu,countCache_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
                       //sumParticles2_kernel(&ndrangeSum, particle_gpu, pos_gpu, countCache_gpu, forceField_gpu,NUM_PARTICLES_FRAC, wd*wd*sizeof(int));
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###############
@@ -540,9 +575,11 @@ int curr_read_index, curr_write_index;
                       //###############
                       cl_timer windTimer = gcl_start_timer();
                       
-                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX"), PropF(@"globalWindY"));
+                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
+
+                      ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
                       
-                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind));
+                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
                       
                       double windTime = gcl_stop_timer(windTimer);
                       
