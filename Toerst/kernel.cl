@@ -151,7 +151,7 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, g
                 
                 p->f = (float2)(0,0);
                 
-                float2 pos = posBuffer[i].pos + p->vel * dt;
+                float2 pos = p->pos + p->vel * dt;
                 
                 posBuffer[i].pos = pos;
                 p->pos = pos;
@@ -270,8 +270,8 @@ kernel void rectAdd(global Particle * particles, global ParticleVBO* posBuffer, 
             float fi = i;
             //float2 pi = sin(fi*1.1423)*(float2)(sin(fi)*0.5,cos(fi)*0.5)*rect.zw + rect.xy;
             
-            float x = (convert_int(3.12312f*i*randomSeed) % 1024)/1024.0f;
-            float y = (convert_int(9.0123479*i*randomSeed2) % 1024)/1024.0f;
+            float x = (convert_int(0.12312f*i*randomSeed) % 1024)/1024.0f;
+            float y = (convert_int(0.0123479*i*randomSeed2) % 1024)/1024.0f;
             //float x = (i % 100*(randomSeed*100.0f))/(10000.0f*randomSeed);
             //float y = (i % 143*(randomSeed*100.0f))/(14300.0f*randomSeed);
             float2 pi = (float2)(x,y);
@@ -381,7 +381,7 @@ kernel void forceTextureForce(global Particle* particles,  global int * forceCac
     }
 }
 
-kernel void sumParticles(global Particle * particles, global int * countCache, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
+kernel void sumParticles(global Particle * particles, global int * countInactiveBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
     global Particle *p = &particles[get_global_id(0)];
     if(!p->dead && !p->inactive){
         int i = get_global_id(0);
@@ -390,7 +390,7 @@ kernel void sumParticles(global Particle * particles, global int * countCache, g
         int texIndex = y*textureWidth+x;
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
-           atomic_add(&countCache[texIndex], 1000.0*p->alpha);
+           atomic_add(&countInactiveBuffer[texIndex], 1000.0*p->alpha);
             
             if(forceFieldParticleInfluence > 0){
                 atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
@@ -410,7 +410,7 @@ kernel void sumParticles(global Particle * particles, global int * countCache, g
 
 
 /*
- kernel void sumParticles2(global Particle * particles, global ParticleVBO* posBuffer, global int * countCache, global int * forceCache, const int numParticles, local int * localArea ){
+ kernel void sumParticles2(global Particle * particles, global ParticleVBO* posBuffer, global int * countInactiveBuffer, global int * forceCache, const int numParticles, local int * localArea ){
     
     int textureWidth = get_global_size(0);
     int localSize = get_local_size(0);
@@ -434,7 +434,7 @@ kernel void sumParticles(global Particle * particles, global int * countCache, g
             int lTexIndex = (y-gy)*localSize + (x-gx);
             
             localArea[lTexIndex] ++;
-//            atomic_inc(&countCache[texIndex]);
+//            atomic_inc(&countInactiveBuffer[texIndex]);
 //            
 //            atomic_add(&forceCache[texIndex*2], p->vel.x*FORCE_CACHE_MULT);
 //            atomic_add(&forceCache[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT);
@@ -513,8 +513,8 @@ __kernel void gaussianBlurSum(
 
 
 
-kernel void resetCountCache(global int * countCache, global int * forceField){
-    countCache[get_global_id(0)] = 0;
+kernel void resetCountCache(global int * countInactiveBuffer, global int * forceField){
+    countInactiveBuffer[get_global_id(0)] = 0;
     forceField[get_global_id(0)*2] = 0;
     forceField[get_global_id(0)*2+1] = 0;
 }
@@ -538,7 +538,93 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
     
 }
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCount, global int * countCache, global int * countInactiveCache){
+kernel void passiveParticlesBufferUpdate(global int * passiveBuffer, global int * inactiveBuffer, global int * activeBuffer, global int * wakeUpBuffer, global int * forceField){
+    int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
+    
+    int force = forceField[id*2] + forceField[id*2+1];
+    
+    if(activeBuffer[id] == 0 && inactiveBuffer[id] > 0 && force == 0){
+        passiveBuffer[id] = inactiveBuffer[id];
+        inactiveBuffer[id] = 0;
+    }
+    
+    if(force != 0){
+        wakeUpBuffer[id] = passiveBuffer[id];
+        passiveBuffer[id] = 0;
+    }
+}
+
+kernel void passiveParticlesParticleUpdate(global Particle * particles, global int * passiveBuffer, global int * wakeUpBuffer, const int textureWidth, local int * wakeUpCache){
+    int i = get_global_id(0);
+    int lid = get_local_id(0);
+    int local_size = get_local_size(0);
+    
+    if(!particles[i].dead){
+        int texIndex = getTexIndex(particles[i].pos, textureWidth);
+        
+        if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
+            if(passiveBuffer[texIndex] > 0){
+                particles[i].dead = true;
+                particles[i].inactive = false;
+            }
+        }
+    }
+    
+    int globalCacheId = (lid + get_group_id(0)*get_local_size(0));
+    
+    if( globalCacheId < textureWidth*textureWidth){
+        wakeUpCache[lid] = wakeUpBuffer[globalCacheId];
+        int orig = (wakeUpCache[lid]);
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        global Particle * p = &particles[i];
+        if(p->dead){
+            for(int j=0;j<local_size;j++){
+                if(wakeUpCache[j] > 0){
+                    atomic_dec(&wakeUpCache[j]);
+
+                    int w = textureWidth;
+
+                    float x = (j + get_group_id(0)*get_local_size(0)) % w;
+                    float y = ((j + get_group_id(0)*get_local_size(0)) - x)/w;
+                    
+                    
+                    float2 point = (float2)(x/textureWidth, y/textureWidth);
+                    
+                    
+                    p->dead = false;
+                    p->inactive = false;
+                    p->pos = point;
+                    p->alpha = 0;
+                    p->age = 0;
+                    p->vel = (float2)(0);
+                    
+                    break;
+                }
+                
+            }
+        }
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+//        atomic_sub(&wakeUpBuffer[globalCacheId], orig - wakeUpCache[lid]);
+        wakeUpBuffer[globalCacheId] = 0;
+    }
+    
+    
+    //    for(int i=0;i<numParticles;i++){
+    //
+    //        if(id == texIndex){
+//            particles[i].dead = true;
+//            particles[i].inactive = false;
+//        }
+//        
+//    }
+
+}
+
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global int * countActiveBuffer, global int * countInactiveBuffer, global int * countPassiveBuffer){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -559,7 +645,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCount[tid] = countCache[global_id] + countInactiveCache[global_id]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 + countPassiveBuffer[global_id]*1000.0;
     
     
     //--------
@@ -568,7 +654,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     
     
     
-    int count = particleCount[tid];
+    int count = particleCountSum[tid];
     int diff[4];
     
     float2 dir = (float2)(0.,0.);
@@ -576,30 +662,30 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     
     diff[0] = 0;
     if(lidx != 0){
-        diff[0] = count - particleCount[tid-1];
+        diff[0] = count - particleCountSum[tid-1];
     } else if(idx > 0) {
-        diff[0] = count - (countCache[global_id-1]+ countInactiveCache[global_id-1]*1000);
+        diff[0] = count - (countActiveBuffer[global_id-1]+ countInactiveBuffer[global_id-1]*1000 + countPassiveBuffer[global_id-1]*1000.0);
     }
     
     diff[1] = 0;
     if(lidx != get_local_size(0)-1){
-        diff[1] = count - particleCount[tid+1];
+        diff[1] = count - particleCountSum[tid+1];
     } else if(idx < width-1){
-        diff[1] = count - (countCache[global_id+1]+ countInactiveCache[global_id+1]*1000);
+        diff[1] = count - (countActiveBuffer[global_id+1]+ countInactiveBuffer[global_id+1]*1000 + countPassiveBuffer[global_id+1]*1000.0);
     }
     
     diff[2] = 0;
     if(lidy != 0){
-        diff[2] = count - particleCount[tid-get_local_size(0)];
+        diff[2] = count - particleCountSum[tid-get_local_size(0)];
     } else if(global_id-width > 0){
-        diff[2] = count - (countCache[global_id-width]+ countInactiveCache[global_id-width]*1000);
+        diff[2] = count - (countActiveBuffer[global_id-width]+ countInactiveBuffer[global_id-width]*1000 + countPassiveBuffer[global_id-width]*1000.0);
     }
     
     diff[3] = 0;
     if(lidy != get_local_size(1)-1){
-        diff[3] = count - particleCount[tid+get_local_size(0)];
+        diff[3] = count - particleCountSum[tid+get_local_size(0)];
     } else  if(idy < width-1){
-        diff[3] = count - (countCache[global_id+width]+ countInactiveCache[global_id+width]*1000);
+        diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width]*1000 + countPassiveBuffer[global_id+width]*1000.0);
     }
 
     
@@ -650,7 +736,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     
     dir /= 1000.0;
     
-    float countColor = clamp(((convert_float(particleCount[tid])/1000.0f)/COUNT_MULT),0.0f,1.0f);
+    float countColor = clamp(((convert_float(particleCountSum[tid])/1000.0f)/COUNT_MULT),0.0f,1.0f);
 
     float4 color = (float4)(countColor,
                             clamp(dir.x+0.5f , 0.0f, 1.0f),
@@ -664,7 +750,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     if( dir.y > 0.5 || dir.y < -0.5 ){
         color = (float4)(0,1,0,1);
     }*/
-  /* if((particleCount[tid]/COUNT_MULT) > 1.0){
+  /* if((particleCountSum[tid]/COUNT_MULT) > 1.0){
         color = (float4)(1,1,1,1);
     }
     */
@@ -672,14 +758,14 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
 
     float4 wcolor = color * 0.5f + read * 0.5f;
     
-    //    float4 color = (float4)(clamp((convert_float(particleCount[tid])/10.0f),0.0f,1.0f),0,0,1);
+    //    float4 color = (float4)(clamp((convert_float(particleCountSum[tid])/10.0f),0.0f,1.0f),0,0,1);
     // float4 color = (float4)(1,0,0,1);
     write_imagef(image, coords, wcolor);
     
     //barrier(CLK_GLOBAL_MEM_FENCE);
     
     //--------
-    //   countCache[global_id] = 0;
+    //   countActiveBuffer[global_id] = 0;
     //--------
     
 }

@@ -39,8 +39,11 @@
     cl_image      texture_blur_gpu;
     cl_image        forceTexture_gpu;
     //cl_image      forceTexture_blur_gpu;
-    cl_int          *countCache_gpu;
-    cl_int          *countInactiveCache_gpu;
+    cl_int          *countActiveBuffer_gpu;
+    cl_int          *countInactiveBuffer_gpu;
+    cl_int          *countPassiveBuffer_gpu;
+    cl_int          *countWakeUpBuffer_gpu;
+    
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
