@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		08260F0D16AD7B1800E46508 /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08260F0C16AD7B1800E46508 /* ofxCocoaPlugins.framework */; };
+		08260F0E16AD7BDA00E46508 /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 08260F0C16AD7B1800E46508 /* ofxCocoaPlugins.framework */; };
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
 		DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDB1B969167F400A00B44795 /* CorePlot.framework */; };
@@ -22,8 +24,6 @@
 		DDFCE919164A9F78000DBD4D /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE917164A9F78000DBD4D /* Credits.rtf */; };
 		DDFCE91C164A9F78000DBD4D /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */; };
 		DDFCE91F164A9F78000DBD4D /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE91D164A9F78000DBD4D /* MainMenu.xib */; };
-		DDFCE92F164A9FCB000DBD4D /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */; };
-		DDFCE931164AA00F000DBD4D /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */; };
 		DDFCE940164AA14E000DBD4D /* Project.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DDFCE93F164AA14E000DBD4D /* Project.xcconfig */; };
 		DDFCE943164AA40E000DBD4D /* ParticleSystem.mm in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */; };
 		DDFCE945164AA4B8000DBD4D /* kernel.cl in Sources */ = {isa = PBXBuildFile; fileRef = DDFCE944164AA4B8000DBD4D /* kernel.cl */; };
@@ -37,14 +37,15 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				DDFCE931164AA00F000DBD4D /* ofxCocoaPlugins.framework in CopyFiles */,
 				DDB1B97C167F41B700B44795 /* CorePlot.framework in CopyFiles */,
+				08260F0E16AD7BDA00E46508 /* ofxCocoaPlugins.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		08260F0C16AD7B1800E46508 /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = "../../Library/Developer/Xcode/DerivedData/Toerst-gallocrhevbojeaiizjgnebpasuu/Build/Products/Debug/ofxCocoaPlugins.framework"; sourceTree = "<group>"; };
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
 		DDB1B969167F400A00B44795 /* CorePlot.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = CorePlot.framework; sourceTree = "<group>"; };
@@ -65,7 +66,6 @@
 		DDFCE91A164A9F78000DBD4D /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
 		DDFCE91E164A9F78000DBD4D /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../../../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
 		DDFCE93F164AA14E000DBD4D /* Project.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		DDFCE941164AA40E000DBD4D /* ParticleSystem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParticleSystem.h; sourceTree = "<group>"; };
 		DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ParticleSystem.mm; sourceTree = "<group>"; };
@@ -78,9 +78,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08260F0D16AD7B1800E46508 /* ofxCocoaPlugins.framework in Frameworks */,
 				DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */,
 				DDFCE947164AA4E0000DBD4D /* OpenCL.framework in Frameworks */,
-				DDFCE92F164A9FCB000DBD4D /* ofxCocoaPlugins.framework in Frameworks */,
 				DDFCE909164A9F78000DBD4D /* Cocoa.framework in Frameworks */,
 				DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */,
 			);
@@ -101,11 +101,11 @@
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
+				08260F0C16AD7B1800E46508 /* ofxCocoaPlugins.framework */,
 				DDB1B969167F400A00B44795 /* CorePlot.framework */,
 				DD098341164C020700CA6147 /* OpenGL.framework */,
 				DDFCE946164AA4E0000DBD4D /* OpenCL.framework */,
 				DDFCE93F164AA14E000DBD4D /* Project.xcconfig */,
-				DDFCE92E164A9FCB000DBD4D /* ofxCocoaPlugins.framework */,
 				DDFCE90E164A9F78000DBD4D /* Toerst */,
 				DDFCE907164A9F78000DBD4D /* Frameworks */,
 				DDFCE905164A9F78000DBD4D /* Products */,
@@ -341,6 +341,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
 					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../Library/Developer/Xcode/DerivedData/Toerst-gallocrhevbojeaiizjgnebpasuu/Build/Products/Debug\"",
 				);
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -361,6 +362,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../../ofxCocoaPlugins/build/Debug\"",
 					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../Library/Developer/Xcode/DerivedData/Toerst-gallocrhevbojeaiizjgnebpasuu/Build/Products/Debug\"",
 				);
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;

@@ -43,6 +43,7 @@
     cl_int          *countInactiveBuffer_gpu;
     cl_int          *countPassiveBuffer_gpu;
     cl_int          *countWakeUpBuffer_gpu;
+    cl_int          *countCreateParticleBuffer_gpu;
     
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
@@ -60,14 +61,15 @@
 
     IBOutlet CPTGraphHostingView *graphView;
     CPTXYGraph *graph;
-    NSMutableArray *plotData;
     CPTFill *areaFill;
     CPTLineStyle *barLineStyle;
     NSUInteger currentIndex;
     NSTimer * dataTimer;
 
+    NSMutableArray *_plotData;
 }
 
 @property (readwrite) float clTime;
+@property     NSMutableArray *plotData;
 
 @end

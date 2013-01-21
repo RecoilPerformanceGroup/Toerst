@@ -51,6 +51,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
 @implementation ParticleSystem
 @synthesize clTime = _clTime;
+@synthesize plotData = _plotData;
 
 -(void)initPlugin{
     firstLoop = YES;
@@ -211,7 +212,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     // Create a dispatch semaphore used for CL / GL sharing.
     cl_gl_semaphore = dispatch_semaphore_create(0);
     
-    pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
+   // pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
     
     texture_gpu[0] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[0]);
     texture_gpu[1] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[1]);
@@ -226,6 +227,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     countActiveBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countPassiveBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countWakeUpBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countCreateParticleBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
     forceField_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
@@ -237,7 +239,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     dispatch_async(queue,
                    ^{
-                       gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
+                     //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
                        gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
                        gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
                    });
@@ -364,11 +366,11 @@ int curr_read_index, curr_write_index;
                           mousePos.s[0] = trackers[i].y;
                           mousePos.s[1] = 1-trackers[i].x;
                           if(mouseForce){
-                              mouseForce_kernel(&ndrange, (Particle*)particle_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
+                              mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
                           }
                           
                           if(mouseAdd){
-                              mouseAdd_kernel(&ndrangeAdd, particle_gpu, pos_gpu, mousePos, mouseRadius, mouseAdd, NUM_PARTICLES_FRAC);
+                              mouseAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, mousePos, mouseRadius, mouseAdd);
                           }
                       }
                       
@@ -386,11 +388,27 @@ int curr_read_index, curr_write_index;
                       double forceTime = gcl_stop_timer(forceTimer);
                       //###############
                       
+            
+                      
+                      
+                      //############# PASSIVE #############
+                      cl_timer passiveTimer = gcl_start_timer();
+                      
+//                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                      
+  //                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int));
+                      
+                      double passiveTime = gcl_stop_timer(passiveTimer);
+                      //###################################
+                      
+                      
+                      addParticles_kernel(&ndrange, particle_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, ofGetFrameNum()*100.0);
+                      
                       
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
 
-                      update_kernel(&ndrange, (Particle*)particle_gpu, pos_gpu, countInactiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      update_kernel(&ndrange, (Particle*)particle_gpu,  countInactiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
 
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
@@ -406,15 +424,7 @@ int curr_read_index, curr_write_index;
                       //###################################
                       
                       
-                      //############# PASSIVE #############
-                      cl_timer passiveTimer = gcl_start_timer();
-                      
-/*                      passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countWakeUpBuffer_gpu, forceField_gpu);
-                      
-                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu, countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int));
-  */                    
-                      double passiveTime = gcl_stop_timer(passiveTimer);
-                      //###################################
+
                       
                       
                       //############### WIND ##############
@@ -739,7 +749,7 @@ int curr_read_index, curr_write_index;
      */
     // Add some data
     
-    plotData = [NSMutableArray array];
+    self.plotData = [NSMutableArray array];
     currentIndex = 0;
     
     // Add legend
@@ -791,16 +801,16 @@ int curr_read_index, curr_write_index;
     int kMaxDataPoints = 300;
     CPTGraph *theGraph = graph;
     
-    if ( plotData.count >= kMaxDataPoints ) {
-        [plotData removeObjectAtIndex:0];
+    if ( self.plotData.count >= kMaxDataPoints ) {
+        [self.plotData removeObjectAtIndex:0];
         for(CPTPlot *thePlot in [theGraph allPlots]){
             
-            [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
+         //   [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
         }
     }
     
     
-    [plotData addObject:arr];
+    [self.plotData addObject:arr];
     
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)theGraph.defaultPlotSpace;
     NSUInteger location       = (currentIndex >= kMaxDataPoints ? currentIndex - kMaxDataPoints + 1 : 0);
@@ -818,14 +828,18 @@ int curr_read_index, curr_write_index;
     
     currentIndex++;
     
+  //  if(self.plotData.count  > 1){
     for(CPTPlot *thePlot in [theGraph allPlots]){
-        [thePlot insertDataAtIndex:plotData.count - 1 numberOfRecords:1];
+     //   NSLog(@"Insert at %i   %@",self.plotData.count - 1,arr );
+//        [thePlot insertDataAtIndex:self.plotData.count - 1 numberOfRecords:1];
     }
+   // }
 }
 
 -(NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot
 {
-    return plotData.count;
+    NSLog(@"Number of records %i",self.plotData.count);
+    return self.plotData.count;
 }
 /*
  -(NSNumber *)numberForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndex:(NSUInteger)index
@@ -840,11 +854,11 @@ int curr_read_index, curr_write_index;
     
     switch ( fieldEnum ) {
         case CPTScatterPlotFieldX:
-            num = [NSNumber numberWithUnsignedInteger:index + currentIndex - plotData.count];
+            num = [NSNumber numberWithUnsignedInteger:index + currentIndex - self.plotData.count];
             break;
             
         case CPTScatterPlotFieldY:
-            num = @(10.0*[[[plotData objectAtIndex:index] valueForKey:(NSString*)plot.identifier] floatValue]);
+            num = @(10.0*[[[self.plotData objectAtIndex:index] valueForKey:(NSString*)plot.identifier] floatValue]);
             break;
             
         default:

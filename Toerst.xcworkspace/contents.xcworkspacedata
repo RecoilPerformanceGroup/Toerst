@@ -5,6 +5,6 @@
       location = "container:Toerst.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:../../../ofxCocoaPlugins/ofxCocoaPlugins.xcodeproj">
+      location = "group:../ofxCocoaPlugins/ofxCocoaPlugins.xcodeproj">
    </FileRef>
 </Workspace>

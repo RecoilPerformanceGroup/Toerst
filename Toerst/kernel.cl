@@ -29,11 +29,9 @@ typedef struct {
 #define FORCE_CACHE_MULT 1000.f
 
 
-void killParticle(global Particle * particle, global ParticleVBO * pos){
+void killParticle(global Particle * particle){
     
     particle->dead = true;
-    pos->pos.x = -1;
-    pos->pos.y = -1;
 }
 
 int getTexIndex(float2 pos, int textureWidth){
@@ -49,7 +47,7 @@ int getTexIndex(float2 pos, int textureWidth){
 //  Particle Updates
 //######################################################
 
-bool particleAgeUpdate(global Particle * p, global float4 * color, const float fadeOutSpeed, const float fadeInSpeed){
+bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const float fadeInSpeed){
     p->age ++;
     
     p->alpha =  smoothstep(0,1,p->age * fadeInSpeed) - smoothstep(0,1,p->age * fadeOutSpeed);
@@ -102,9 +100,10 @@ void forceTextureForceUpdate(global Particle* p, global int * forceCache, const 
 //######################################################
 //  Particle Kernels
 //######################################################
+// Update the particles position 
+//
 
-
-kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, global int * countInactiveCache, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
+kernel void update(global Particle* particles,  global int * countInactiveCache, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
 {
     size_t i = get_global_id(0);
     
@@ -112,146 +111,162 @@ kernel void update(global Particle* particles,  global ParticleVBO* posBuffer, g
     
     if(!p->dead ){
         //------- Age --------
-        bool kill = particleAgeUpdate(p, &posBuffer[i].color, fadeOutSpeed, fadeInSpeed);
+        bool kill = particleAgeUpdate(p, fadeOutSpeed, fadeInSpeed);
         if(kill){
             if(p->inactive){
                 int texIndex = getTexIndex(p->pos, textureWidth);
                 atomic_dec(&countInactiveCache[texIndex]);
                 
             }
-            killParticle(p, posBuffer+i);
+            killParticle(p);
         }
     }
     
-        //------- Force Texture Force --------
+    //-------  Position --------
     if(!p->dead ){
-       /* if(forceTextureForce){
-            forceTextureForceUpdate(p, forceCache, forceTextureForce, forceTextureForceMax, textureWidth);
-        }*/
-        
-        
-        if(!p->dead){
-            p->vel *= damp;
 
-            p->vel += p->f * p->mass;
-            
-            float speed = fast_length(p->vel);
-            if(speed < minSpeed*0.1 * p->mass){
-                p->vel  = (float2)(0,0);
+        p->vel *= damp;
+        
+        p->vel += p->f * p->mass;
+        
+        float speed = fast_length(p->vel);
+        if(speed < minSpeed*0.1 * p->mass){
+            p->vel  = (float2)(0,0);
+        }
+        
+        if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
+
+            //Make sure its not inactive
+            if(p->inactive){
+                p->inactive = false;
+                int texIndex = getTexIndex(p->pos, textureWidth);
+                atomic_dec(&countInactiveCache[texIndex]);
             }
             
-            if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
+            p->f = (float2)(0,0);
+            
+            float2 pos = p->pos + p->vel * dt;
+            
+            p->pos = pos;
+            
+            
+            //Boundary check
+            bool kill = false;
+            if(p->pos.x >= 1){
+                kill = true;
+            }
+            
+            if(p->pos.y >= 1){
+                kill = true;
+            }
+            
+            if(p->pos.x <= 0){
+                kill = true;
+            }
+            
+            if(p->pos.y <= 0){
+                kill = true;
+            }
+            
+            if(kill){
                 if(p->inactive){
-                    p->inactive = false;
-
                     int texIndex = getTexIndex(p->pos, textureWidth);
                     atomic_dec(&countInactiveCache[texIndex]);
-
+                    
                 }
+                killParticle(p);
                 
-                p->f = (float2)(0,0);
-                
-                float2 pos = p->pos + p->vel * dt;
-                
-                posBuffer[i].pos = pos;
-                p->pos = pos;
-                
-                bool kill = false;
-                if(posBuffer[i].pos.x >= 1){
-                    kill = true;
-                    //            p->vel.x *= -1;
-                    //                p->dead = true;
-                    //              posBuffer[i].x -= 1;
-                    //            posBuffer[i] = (float2)(0.5);
-                }
-                
-                if(posBuffer[i].pos.y >= 1){
-                    //    p->vel.y *= -1;
-                    kill = true;
-                }
-                //            posBuffer[i] = (float2)(0.5);
-                
-                if(posBuffer[i].pos.x <= 0){
-                    //            p->vel.x *= -1;
-                    kill = true;
-                }
-                //            posBuffer[i] = (float2)(0.5);
-                
-                if(posBuffer[i].pos.y <= 0){
-                    //            p->vel.y *= -1;
-                    kill = true;
-                }
-                
-                if(kill){
-                    if(p->inactive){
-                        int texIndex = getTexIndex(p->pos, textureWidth);
-                        atomic_dec(&countInactiveCache[texIndex]);
-                        
-                    }
-                    killParticle(p, posBuffer+i);
-
-                }
-                //          posBuffer[i] = (float2)(0.5);
-                
-            } else if(!p->inactive && p->alpha == 1){
-                p->inactive = true;
-                
-                int texIndex = getTexIndex(p->pos, textureWidth);
-                atomic_inc(&countInactiveCache[texIndex]);
             }
-        }
-    }
-}
 
-
-kernel void mouseForce(global Particle* particles,  const float2 mousePos, const float mouseForce, float mouseRadius){
-    int id = get_global_id(0);
-	global Particle *p = &particles[id];
-    if(!p->dead){
-        
-        float2 diff = mousePos - p->pos;
-        float dist = fast_length(diff);
-        if(dist < mouseRadius){
-            float invDistSQ = 1.0f / dist;
-            diff *= mouseForce * invDistSQ;
             
-            p->f +=  - diff;
+        } else if(!p->inactive && p->alpha == 1){
+            p->inactive = true;
+            
+            int texIndex = getTexIndex(p->pos, textureWidth);
+            atomic_inc(&countInactiveCache[texIndex]);
         }
+    }
+    
+}
+
+
+
+
+
+kernel void mouseForce(global int * forceField,  const float2 mousePos, const float mouseForce, float mouseRadius){
+    
+    int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    float x = convert_float(get_global_id(0))/get_global_size(0);
+    float y = convert_float(get_global_id(1))/get_global_size(1);
+    
+    
+    
+    float2 diff = mousePos - (float2)(x,y);
+    float dist = fast_length(diff);
+    if(dist < mouseRadius){
+        float invDistSQ = 1.0f / dist;
         
+        diff = fast_normalize(diff);
+        diff *= mouseForce * invDistSQ;
+        
+        forceField[index*2] +=  - diff.x*FORCE_CACHE_MULT;
+        forceField[index*2+1] +=  - diff.y*FORCE_CACHE_MULT;
     }
 }
 
-kernel void mouseAdd(global Particle * particles, global ParticleVBO* posBuffer, const float2 addPos, const float mouseRadius, const int numAdd, const int numParticles){
+kernel void mouseAdd(global int * countCreateBuffer,  const float2 addPos, const float mouseRadius, const int numAdd){
     if(numAdd == 0){
         return;
     }
-    int id = get_global_id(0);
-    int size = get_global_size(0);
     
-    int fraction = numParticles / size;
     
-    int added = 0;
-    for(int i=id*fraction ; i<id*fraction+fraction ; i++){
-        global Particle * p = &particles[i];
-        if(p->dead){
-            float fi = i;
-            float2 offset = (float2)(sin(fi),cos(fi)) * mouseRadius*0.2 * sin(i*43.73214);
+    int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    float x = convert_float(get_global_id(0))/get_global_size(0);
+    float y = convert_float(get_global_id(1))/get_global_size(1);
+
+    
+    float2 diff = addPos - (float2)(x,y);
+    float dist = fast_length(diff);
+    if(dist < mouseRadius){
+        atomic_inc(&countCreateBuffer[index]);
+    }
+
+}
+
+
+kernel void addParticles(global Particle * particles, global int * countCreateBuffer, const int textureWidth, const int offset){
+    int i = get_global_id(0);
+    
+    int bufferSize = textureWidth*textureWidth;
+    
+    
+    __global Particle * p = &particles[i];
+    
+    
+    if(p->dead){
+        
+        for(int j=0;j<1000;j+=100){
+            int bufferId = (j+get_global_id(0)+offset) % bufferSize;
             
-            p->dead = false;
-            p->inactive = false;
-            p->vel = (float2)(0);
-            p->age = 0;
-            posBuffer[i].pos = addPos + offset;             p->pos = addPos + offset;
-            p->alpha = 0.0;
-          //  posBuffer[i].color = (float4)(1,1,1,0);
-            added ++;
+            if(countCreateBuffer[bufferId] > 0){
+                int read = atomic_dec(&countCreateBuffer[bufferId]);
+                if(read > 0){
+                    p->dead = false;
+                    p->inactive = false;
+                    p->vel = (float2)(0);
+                    p->age = 0;
+                    
+                    p->pos.x = (bufferId % textureWidth) / 1024.0f;
+                    p->pos.y = ((bufferId - (bufferId % textureWidth))/textureWidth) / 1024.0f;
+                    p->alpha = 1.0;
+                    break;
+                }
+            }
         }
-         
-        if(numAdd == added)
-            break;
     }
     
 }
+
 
 kernel void rectAdd(global Particle * particles, global ParticleVBO* posBuffer, const float4 rect, const float numAdd, const int numParticles, const float randomSeed,const float randomSeed2){
     if(numAdd == 0){
@@ -381,7 +396,7 @@ kernel void forceTextureForce(global Particle* particles,  global int * forceCac
     }
 }
 
-kernel void sumParticles(global Particle * particles, global int * countInactiveBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
+kernel void sumParticles(global Particle * particles, global int * countActiveBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
     global Particle *p = &particles[get_global_id(0)];
     if(!p->dead && !p->inactive){
         int i = get_global_id(0);
@@ -390,7 +405,7 @@ kernel void sumParticles(global Particle * particles, global int * countInactive
         int texIndex = y*textureWidth+x;
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
-           atomic_add(&countInactiveBuffer[texIndex], 1000.0*p->alpha);
+           atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
             
             if(forceFieldParticleInfluence > 0){
                 atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
@@ -549,7 +564,7 @@ kernel void passiveParticlesBufferUpdate(global int * passiveBuffer, global int 
     }
     
     if(force != 0){
-        wakeUpBuffer[id] = passiveBuffer[id];
+        atomic_add(&wakeUpBuffer[id], passiveBuffer[id]);
         passiveBuffer[id] = 0;
     }
 }
@@ -569,7 +584,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global i
             }
         }
     }
-    
+    /*
     int globalCacheId = (lid + get_group_id(0)*get_local_size(0));
     
     if( globalCacheId < textureWidth*textureWidth){
@@ -582,25 +597,31 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global i
         if(p->dead){
             for(int j=0;j<local_size;j++){
                 if(wakeUpCache[j] > 0){
-                    atomic_dec(&wakeUpCache[j]);
+                    int wakeUpRead = atomic_dec(&wakeUpCache[j]);
+                    if  (wakeUpRead > 0){
+                        
+                        int w = textureWidth;
+                        
+                        float x = (j + get_group_id(0)*get_local_size(0)) % w;
+                        float y = ((j + get_group_id(0)*get_local_size(0)) - x)/w;
+                        
+                        
+                        float2 point = (float2)(x/textureWidth, y/textureWidth);
+                        
+                        
+                        p->dead = false;
+                        p->inactive = false;
+                        p->pos = point;
+                        p->alpha = 1;
+                        p->age = 0;
+                        p->vel = (float2)(0);
+                        
+                        int texIndex = getTexIndex(point, textureWidth);
+                        atomic_add(&countActiveBuffer[texIndex], 1000.0);
 
-                    int w = textureWidth;
-
-                    float x = (j + get_group_id(0)*get_local_size(0)) % w;
-                    float y = ((j + get_group_id(0)*get_local_size(0)) - x)/w;
-                    
-                    
-                    float2 point = (float2)(x/textureWidth, y/textureWidth);
-                    
-                    
-                    p->dead = false;
-                    p->inactive = false;
-                    p->pos = point;
-                    p->alpha = 0;
-                    p->age = 0;
-                    p->vel = (float2)(0);
-                    
-                    break;
+                        
+                        break;
+                    }
                 }
                 
             }
@@ -608,10 +629,20 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global i
         
         barrier(CLK_LOCAL_MEM_FENCE);
         
-//        atomic_sub(&wakeUpBuffer[globalCacheId], orig - wakeUpCache[lid]);
+        //        atomic_sub(&wakeUpBuffer[globalCacheId], orig - wakeUpCache[lid]);
         wakeUpBuffer[globalCacheId] = 0;
     }
+    */
+    /*
+    int globalCacheId = (lid + get_group_id(0)*get_local_size(0));
     
+    if( globalCacheId < textureWidth*textureWidth){
+        int origWakeUpBuffer = (wakeUpBuffer[lid]);
+        
+        if(origWakeUpBuffer > )
+
+    }
+    */
     
     //    for(int i=0;i<numParticles;i++){
     //
@@ -621,6 +652,8 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global i
 //        }
 //        
 //    }
+   
+   
 
 }
 
@@ -769,6 +802,8 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //--------
     
 }
+
+
 
 
 
