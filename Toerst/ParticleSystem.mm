@@ -12,7 +12,7 @@
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
-#define NUM_PARTICLES (1024*5000)
+#define NUM_PARTICLES (1024*2000)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 
 
@@ -240,7 +240,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     countInactiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countActiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countPassiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countWakeUpBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+//    countWakeUpBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
     forceField_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
@@ -408,29 +408,46 @@ int curr_read_index, curr_write_index;
                       double forceTime = gcl_stop_timer(forceTimer);
                       //###############
                       
+                      //############### WIND ##############
+                      cl_timer windTimer = gcl_start_timer();
+                      
+                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
+                      
+                      ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
+                      
+                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
+                      
+                      double windTime = gcl_stop_timer(windTimer);
+                      //####################################
+                      
+
+                      
                       
                       
                       
                       //############# PASSIVE #############
                       cl_timer passiveTimer = gcl_start_timer();
                       
-                      //                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                      sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
                       
-                      //                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int));
+                      passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                      
+                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
                       
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
                       
                       
-                      addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum++, NUM_PARTICLES_FRAC);
+                      addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum++, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
+
+                      
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
                       
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
                       
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
-                      
                       
                       
                       //############### SUM ###############
@@ -445,19 +462,7 @@ int curr_read_index, curr_write_index;
                       
                       
                       
-                      //############### WIND ##############
-                      cl_timer windTimer = gcl_start_timer();
-                      
-                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
-                      
-                      ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
-                      
-                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
-                      
-                      double windTime = gcl_stop_timer(windTimer);
-                      //####################################
-                      
-                      
+                                           
                       //####################################
                       forceTimer = gcl_start_timer();
                       if(forceTextureForce){
@@ -507,7 +512,7 @@ int curr_read_index, curr_write_index;
                           {TEXTURE_RES*TEXTURE_RES},
                           {0}
                       };
-                      resetCountCache_kernel(&ndrangeReset, countActiveBuffer_gpu, forceField_gpu);
+                      resetCountCache_kernel(&ndrangeReset, countInactiveBuffer_gpu, countActiveBuffer_gpu, forceField_gpu);
                       
                       
                       

@@ -109,7 +109,7 @@ void forceTextureForceUpdate(global Particle* p, global int * forceCache, const 
 // Update the particles position 
 //
 
-kernel void update(global Particle* particles, global unsigned int * isDeadBuffer,  global unsigned  int * countInactiveCache, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global  int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
+kernel void update(global Particle* particles, global unsigned int * isDeadBuffer,  global unsigned  int * countInactiveCache, global unsigned int * countActiveBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global  int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
 {
     size_t i = get_global_id(0);
     size_t li = get_local_id(0);
@@ -132,26 +132,24 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
     isDead[li] = isDeadBuffer[i/32] & (1<<(i%32));
  
     __global Particle *p = &particles[i];
-    
-    if(!isDead[li]  ){
+   /* if(!isDead[li]  ){
     //if(!p->dead){
         //------- Age --------
         bool kill = particleAgeUpdate(p, fadeOutSpeed, fadeInSpeed);
         if(kill){
-            if(p->inactive){
-                int texIndex = getTexIndex(p->pos, textureWidth);
-                atomic_dec(&countInactiveCache[texIndex]);
-                
-            }
+           
             killParticle(p);
            isDead[li] = true;
         }
-    }
+    }*/
+    
     
     //-------  Position --------
     if(!isDead[li]){
 //    if(!p->dead){
 
+        p->age ++;
+        
         p->vel *= damp;
         
         p->vel += p->f * p->mass;
@@ -164,12 +162,12 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
 
             //Make sure its not inactive
-            if(p->inactive){
+           /* if(p->inactive){
                 p->inactive = false;
                 int texIndex = getTexIndex(p->pos, textureWidth);
                 atomic_dec(&countInactiveCache[texIndex]);
             }
-            
+            */
             p->f = (float2)(0,0);
             
             float2 pos = p->pos + p->vel * dt;
@@ -196,27 +194,24 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             }
             
             if(kill){
-                if(p->inactive){
+                /*if(p->inactive){
                     int texIndex = getTexIndex(p->pos, textureWidth);
                     atomic_dec(&countInactiveCache[texIndex]);
                     
-                }
+                }*/
                 killParticle(p);
                 isDead[li] = true;
                 
             }
 
             
-        } else if(!p->inactive && p->alpha == 1){
+        } else if(!p->inactive && p->alpha == 1 && p->age > 100){
             p->inactive = true;
-            
-            int texIndex = getTexIndex(p->pos, textureWidth);
-            atomic_inc(&countInactiveCache[texIndex]);
         }
     }
     
     barrier(CLK_LOCAL_MEM_FENCE);
-
+    
     
     if(li%32 == 0){
         unsigned int store = 0;
@@ -275,7 +270,8 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
 
 
 
-kernel void addParticles(global Particle * particles, global unsigned int * isDeadBuffer, global unsigned int * countCreateBuffer, const int textureWidth, const int offset, const int numParticles){
+
+kernel void addParticles(global Particle * particles, global unsigned int * isDeadBuffer, global unsigned int * countCreateBuffer, const int textureWidth, const int offset, const int numParticles, global unsigned int * countActiveBuffer){
     
     int global_id = get_global_id(0);
     int lid = get_local_id(0);
@@ -285,8 +281,21 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
     local bool createNew[32];
     local int isDeadBufferRead;
     
-    for(int it=0;it<1;it++){
-       
+    local int numberToAdd[32];
+    local bool anyToAdd = false;
+    
+    numberToAdd[lid] = countCreateBuffer[global_id];
+    if(numberToAdd[lid] > 0)
+        anyToAdd = true;
+
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    
+//    for(int it=0;it<1;it++){
+    int it=0;
+    while(anyToAdd && it < 150){
+    
         unsigned int bufferId = (groupId+(it+offset) * get_global_size(0)/get_local_size(0)) % (numParticles/32);
         
         //isDeadBufferRead= isDeadBuffer[bufferId];
@@ -301,7 +310,7 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
         //  int r = (i+lid)%32;
         int r = lid;
         
-        if(isDead[r] && countCreateBuffer[global_id] > 0){
+        if(isDead[r] && numberToAdd[lid] > 0){
             isDead[r] = false;
             
             
@@ -310,21 +319,26 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
             p->dead = false;
             p->inactive = false;
             p->vel = (float2)(0);
-            p->age = 0;
+            p->age = 50;
             
             p->pos.x =  (global_id % textureWidth) / 1024.0f;
             p->pos.y = ((global_id - (global_id % textureWidth))/textureWidth) / 1024.0f;
             
             p->alpha = 1.0;
-
-
             
-            countCreateBuffer[global_id]=0;
+            int texIndex = getTexIndex(p->pos, textureWidth);
+            atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
+
+
+
+            numberToAdd[lid]--;
         }
         
         
         // }
         
+        anyToAdd = false;
+
         barrier(CLK_LOCAL_MEM_FENCE);
         
         if(lid == 0){
@@ -335,8 +349,15 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
             isDeadBuffer[bufferId] = store;
         }
         
-        barrier(CLK_GLOBAL_MEM_FENCE);
+        
+        
+        countCreateBuffer[global_id] = numberToAdd[lid];
 
+        if(numberToAdd[lid] > 0)
+            anyToAdd = true;
+        
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        it++;
     }
     
     /*__global Particle * p = &particles[i];
@@ -572,6 +593,22 @@ kernel void forceTextureForce(global Particle* particles,  global  int * forceCa
     }
 }
 
+
+kernel void sumParticleActivity(global Particle * particles, global unsigned int * countActiveBuffer, global unsigned int * countInactiveBuffer, const int textureWidth){
+    global Particle * p = &particles[get_global_id(0)];
+
+    int texIndex = getTexIndex(p->pos, textureWidth);
+    if(!p->dead && texIndex > 0 && texIndex < textureWidth*textureWidth){
+        if(p->inactive){
+            atomic_inc(&countInactiveBuffer[texIndex]);
+            
+        } else {
+            atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
+        }
+    }   
+
+}
+
 kernel void sumParticles(global Particle * particles, global unsigned  int * countActiveBuffer, global unsigned int* isDeadBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
     int id = get_global_id(0);
     
@@ -583,7 +620,6 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
         int texIndex = y*textureWidth+x;
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
-           atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
             
             if(forceFieldParticleInfluence > 0){
                 atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
@@ -591,7 +627,9 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
             }
         }
     }
-    /*
+    
+    
+    //DEBUG
     if(p->dead){
         atomic_inc(&counter[0].deadParticles);
     } else if(p->inactive){
@@ -603,7 +641,7 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
     
     if(isDeadBuffer[id/32] & (1<<(id%32))  ){
         atomic_inc(&counter[0].deadParticlesBit);
-    }*/
+    }
     
     
 }
@@ -713,7 +751,8 @@ __kernel void gaussianBlurSum(
 
 
 
-kernel void resetCountCache(global unsigned  int * countInactiveBuffer, global int * forceField){
+kernel void resetCountCache(global unsigned  int * countInactiveBuffer,global unsigned  int * countActiveBuffer, global int * forceField){
+    countActiveBuffer[get_global_id(0)] = 0;
     countInactiveBuffer[get_global_id(0)] = 0;
     forceField[get_global_id(0)*2] = 0;
     forceField[get_global_id(0)*2+1] = 0;
@@ -738,41 +777,68 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
     
 }
 
-kernel void passiveParticlesBufferUpdate(global int * passiveBuffer, global int * inactiveBuffer, global int * activeBuffer, global int * wakeUpBuffer, global int * forceField){
+kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateParticleBuffer, global int * forceField){
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     
     int force = forceField[id*2] + forceField[id*2+1];
     
     if(activeBuffer[id] == 0 && inactiveBuffer[id] > 0 && force == 0){
-        passiveBuffer[id] = inactiveBuffer[id];
+        passiveBuffer[id] += inactiveBuffer[id];
         inactiveBuffer[id] = 0;
     }
     
+    if(passiveBuffer[id] > 0 && inactiveBuffer[id] > 0){
+        atomic_add(&countCreateParticleBuffer[id], passiveBuffer[id]);
+        passiveBuffer[id] = 0;
+    }
+    
+    if(passiveBuffer[id] > 0 && activeBuffer[id] > 0){
+        atomic_add(&countCreateParticleBuffer[id], passiveBuffer[id]);
+        passiveBuffer[id] = 0;
+    }
+    
     if(force != 0){
-        atomic_add(&wakeUpBuffer[id], passiveBuffer[id]);
+        atomic_add(&countCreateParticleBuffer[id], passiveBuffer[id]);
         passiveBuffer[id] = 0;
     }
 }
 
-kernel void passiveParticlesParticleUpdate(global Particle * particles, global int * passiveBuffer, global int * wakeUpBuffer, const int textureWidth, local int * wakeUpCache){
+kernel void passiveParticlesParticleUpdate(global Particle * particles, global unsigned int * passiveBuffer, global unsigned int * wakeUpBuffer, const int textureWidth, local int * wakeUpCache, global unsigned int *isDeadBuffer){
+    
     int i = get_global_id(0);
     int lid = get_local_id(0);
     int local_size = get_local_size(0);
     
-    if(!particles[i].dead){
+    local bool isDead[1024];
+    isDead[lid] = isDeadBuffer[i/32] & (1<<(i%32));
+    
+    if(!particles[i].dead && particles[i].inactive){
         int texIndex = getTexIndex(particles[i].pos, textureWidth);
         
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
             if(passiveBuffer[texIndex] > 0){
                 particles[i].dead = true;
                 particles[i].inactive = false;
+                
+                isDead[lid] = true;
             }
         }
     }
-    /*
-    int globalCacheId = (lid + get_group_id(0)*get_local_size(0));
     
-    if( globalCacheId < textureWidth*textureWidth){
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if(lid%32 == 0){
+        unsigned int store = 0;
+        for(int j=0;j<32;j++){
+            store += isDead[lid+j] << j;
+        }
+        isDeadBuffer[i/32] = store;
+    }
+    
+    /*
+     int globalCacheId = (lid + get_group_id(0)*get_local_size(0));
+     
+     if( globalCacheId < textureWidth*textureWidth){
         wakeUpCache[lid] = wakeUpBuffer[globalCacheId];
         int orig = (wakeUpCache[lid]);
         
@@ -804,7 +870,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global i
                         int texIndex = getTexIndex(point, textureWidth);
                         atomic_add(&countActiveBuffer[texIndex], 1000.0);
 
-                        
+     
                         break;
                     }
                 }
@@ -863,7 +929,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 + countPassiveBuffer[global_id]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +countPassiveBuffer[global_id]*1000.0;
     
     
     //--------
