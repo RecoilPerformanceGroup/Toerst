@@ -46,8 +46,8 @@
     cl_uint          *countWakeUpBuffer_gpu;
     cl_uint          *countCreateParticleBuffer_gpu;
     
-    cl_uint          *forceField_gpu;
-    cl_uint          *forceCacheBlur_gpu;
+    cl_int          *forceField_gpu;
+    cl_int          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
     ParticleCounter *counter_gpu;
     
@@ -68,6 +68,8 @@
     NSTimer * dataTimer;
 
     NSMutableArray *_plotData;
+    
+    int frameNum;
 }
 
 @property (readwrite) float clTime;

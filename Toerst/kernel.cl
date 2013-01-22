@@ -109,7 +109,7 @@ void forceTextureForceUpdate(global Particle* p, global int * forceCache, const 
 // Update the particles position 
 //
 
-kernel void update(global Particle* particles, global unsigned int * isDeadBuffer,  global unsigned  int * countInactiveCache, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global unsigned  int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
+kernel void update(global Particle* particles, global unsigned int * isDeadBuffer,  global unsigned  int * countInactiveCache, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global  int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
 {
     size_t i = get_global_id(0);
     size_t li = get_local_id(0);
@@ -231,7 +231,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
 
 
 
-kernel void mouseForce(global unsigned int * forceField,  const float2 mousePos, const float mouseForce, float mouseRadius){
+kernel void mouseForce(global int * forceField,  const float2 mousePos, const float mouseForce, float mouseRadius){
     
     int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
     float x = convert_float(get_global_id(0))/get_global_size(0);
@@ -266,7 +266,8 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
     float2 diff = addPos - (float2)(x,y);
     float dist = fast_length(diff);
     if(dist < mouseRadius){
-        atomic_inc(&countCreateBuffer[index]);
+       // atomic_inc(&countCreateBuffer[index]);
+        countCreateBuffer[index] = 1;
     }
 
 }
@@ -284,24 +285,25 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
     local bool createNew[32];
     local int isDeadBufferRead;
     
-    // for(int it=0;it<numParticles/32;it++){
-    int bufferId = (groupId);// % (numParticles/32);
-    
-    isDeadBufferRead= isDeadBuffer[bufferId];
-    //isDead[lid] = isDeadBufferRead & (1<<lid);
-    isDead[lid] = (isDeadBuffer[bufferId]) & (1<<lid);
-    //createNew[lid] = countCreateBuffer[global_id];
-    
-    barrier(CLK_LOCAL_MEM_FENCE);
-    
-    
-    for(int i=0;i<1;i++){
-        int r = (i+lid)%32;
+    for(int it=0;it<1;it++){
+       
+        unsigned int bufferId = (groupId+(it+offset) * get_global_size(0)/get_local_size(0)) % (numParticles/32);
+        
+        //isDeadBufferRead= isDeadBuffer[bufferId];
+        //isDead[lid] = isDeadBufferRead & (1<<lid);
+        isDead[lid] = (isDeadBuffer[bufferId]) & (1<<lid);
+        //createNew[lid] = countCreateBuffer[global_id];
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        
+        // for(int i=0;i<1;i++){
+        //  int r = (i+lid)%32;
+        int r = lid;
         
         if(isDead[r] && countCreateBuffer[global_id] > 0){
             isDead[r] = false;
-
-            countCreateBuffer[global_id]--;
+            
             
             
             global Particle * p = &particles[bufferId*32+r];
@@ -314,22 +316,28 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
             p->pos.y = ((global_id - (global_id % textureWidth))/textureWidth) / 1024.0f;
             
             p->alpha = 1.0;
+
+
             
-            
+            countCreateBuffer[global_id]=0;
         }
-    }
-    
-    barrier(CLK_LOCAL_MEM_FENCE);
-    
-    if(lid == 0){
-        unsigned int store = 0;
-        for(int j=0;j<32;j++){
-            store += isDead[j] << j;
+        
+        
+        // }
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        if(lid == 0){
+            unsigned int store = 0;
+            for(int j=0;j<32;j++){
+                store += isDead[j] << j;
+            }
+            isDeadBuffer[bufferId] = store;
         }
-        isDeadBuffer[bufferId] = store;
+        
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
     }
-    
-    //  }
     
     /*__global Particle * p = &particles[i];
      
@@ -500,7 +508,7 @@ kernel void textureForce(global Particle* particles, read_only image2d_t image, 
     }
 }
 
-kernel void forceTextureForce(global Particle* particles,  global unsigned  int * forceCache, const float force, const float forceMax, const int textureWidth/*, local int2 * forceCacheLocal*/){
+kernel void forceTextureForce(global Particle* particles,  global  int * forceCache, const float force, const float forceMax, const int textureWidth/*, local int2 * forceCacheLocal*/){
     
     int i = get_global_id(0);
     int lid = get_local_id(0);
@@ -564,7 +572,7 @@ kernel void forceTextureForce(global Particle* particles,  global unsigned  int 
     }
 }
 
-kernel void sumParticles(global Particle * particles, global unsigned  int * countActiveBuffer, global unsigned int* isDeadBuffer, global unsigned  int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
+kernel void sumParticles(global Particle * particles, global unsigned  int * countActiveBuffer, global unsigned int* isDeadBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
     int id = get_global_id(0);
     
     global Particle *p = &particles[get_global_id(0)];
@@ -583,7 +591,7 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
             }
         }
     }
-    
+    /*
     if(p->dead){
         atomic_inc(&counter[0].deadParticles);
     } else if(p->inactive){
@@ -591,41 +599,12 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
     } else {
         atomic_inc(&counter[0].activeParticles);
     }
-    
-    
-   /* unsigned int intRead;
-    int count;
-    
-    if(id%32==0){
-        intRead = isDeadBuffer[id/32];
-        if(intRead > 0){
-            for(int i=0;i<32;i++){
-                if(intRead & (1<<i)){
-                    count++;
-                }
-            }
-            
-            atomic_add(&counter[0].deadParticlesBit,count);
-        }
-    }*/
-    
-    /*
-    
-    barrier(CLK_LOCAL_MEM_FENCE);
 
-    count += (intRead & (1<<(id%32)));
     
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    if(id%32==0){
-        atomic_add(&counter[0].deadParticlesBit,count);
-
-    }*/
-/*
-    if(intRead & (1<<(id%32))  ){
+    if(isDeadBuffer[id/32] & (1<<(id%32))  ){
         atomic_inc(&counter[0].deadParticlesBit);
-    }
-    */
+    }*/
+    
     
 }
 
@@ -734,13 +713,13 @@ __kernel void gaussianBlurSum(
 
 
 
-kernel void resetCountCache(global unsigned  int * countInactiveBuffer, global unsigned  int * forceField){
+kernel void resetCountCache(global unsigned  int * countInactiveBuffer, global int * forceField){
     countInactiveBuffer[get_global_id(0)] = 0;
     forceField[get_global_id(0)*2] = 0;
     forceField[get_global_id(0)*2+1] = 0;
 }
 
-kernel void updateForceTexture(write_only image2d_t image, global unsigned  int * forceField){
+kernel void updateForceTexture(write_only image2d_t image, global int * forceField){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int global_id = idy*get_image_width(image) + idx;
@@ -1013,7 +992,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
 
 
 
-kernel void wind(global unsigned  int * forceField, const float2 globalWind, const float3 pointWind ){
+kernel void wind(global int * forceField, const float2 globalWind, const float3 pointWind ){
     int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
     float x = convert_float(get_global_id(0))/get_global_size(0);
     float y = convert_float(get_global_id(1))/get_global_size(1);
