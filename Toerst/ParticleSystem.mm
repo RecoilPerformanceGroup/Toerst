@@ -12,7 +12,7 @@
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
-#define NUM_PARTICLES (1024*2000)
+#define NUM_PARTICLES (1024*5000)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 
 
@@ -66,14 +66,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropF:@"particleDamp"];
     [self addPropF:@"particleMinSpeed"];
     [self addPropF:@"particleFadeOutSpeed"];
-    [[self addPropF:@"particleFadeInSpeed"] setMaxValue:10.0];
+    [[self addPropF:@"particleFadeInSpeed"] setMaxValue:1000.0];
     [self addPropF:@"textureForce"];
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
     
     [self addPropF:@"forceFieldParticleInfluence"];
     [[self addPropF:@"forceTextureForce"] setMaxValue:10.0];
-//    [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
+    //    [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
     
     [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
@@ -81,7 +81,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
     [self addPropF:@"shaderDiffuse"] ;
     [[self addPropF:@"shaderGain"] setMaxValue:10.0];
-
+    
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
@@ -96,8 +96,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"rectAddWidth"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAddHeight"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
-
-
+    
+    
     
 }
 
@@ -106,10 +106,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 -(void)setup{
     glewInit();
     
-    ParticleVBO	*			particlesVboData;
+//    ParticleVBO	*			particlesVboData;
     Particle *			particles;
     
-    particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
+   // particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
     particles = (Particle*) malloc(NUM_PARTICLES* sizeof(Particle));
     counter = (ParticleCounter*) malloc(sizeof(ParticleCounter));
     
@@ -125,17 +125,25 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         p.pos.s[1] = ofRandom(1);
         p.dead = YES;
         p.inactive = NO;
+        p.alpha = 0.0;
         
         //	particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
         /*        particlesVboData[i].pos.s[0] = -1;
          particlesVboData[i].pos.s[1] = -1;*/
-        particlesVboData[i].pos.s[0] = p.pos.s[0];
+     /*   particlesVboData[i].pos.s[0] = p.pos.s[0];
         particlesVboData[i].pos.s[1] = p.pos.s[1];
         particlesVboData[i].color.s[0] = 1;
         particlesVboData[i].color.s[1] = 1;
         particlesVboData[i].color.s[2] = 1;
-        particlesVboData[i].color.s[3] = 0.5;
+        particlesVboData[i].color.s[3] = 0.5;*/
     }
+    
+    isDead = (cl_uint*)malloc(sizeof(cl_uint)*NUM_PARTICLES/32);
+    for(int i=0;i<NUM_PARTICLES/32;i++){
+                isDead[i] = 0xFFFFFFFF;
+//        isDead[i] = 0x0;
+    }
+    
     
     counter->activeParticles = 0;
     counter->deadParticles = 0;
@@ -147,7 +155,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_DYNAMIC_COPY);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STATIC_DRAW);
+   // glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STATIC_DRAW);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STREAM_DRAW);
     
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -163,7 +171,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,TEXTURE_RES,TEXTURE_RES,0,GL_RGB,GL_FLOAT,textureData);
-
+    
     glGenTextures( 1, &texture[1] );
     glBindTexture(GL_TEXTURE_2D,texture[1]); // Set our Tex handle as current
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -212,7 +220,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     // Create a dispatch semaphore used for CL / GL sharing.
     cl_gl_semaphore = dispatch_semaphore_create(0);
     
-   // pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
+    // pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
     
     texture_gpu[0] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[0]);
     texture_gpu[1] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[1]);
@@ -223,14 +231,20 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
-    countInactiveBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countActiveBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countPassiveBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countWakeUpBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countCreateParticleBuffer_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
-    forceField_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
-    forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+ 
+    NSLog(@"aspkdpoasdkpoasdkop askdpo ka     %ui",isDead[1]);
+    
+    isDead_gpu = (cl_uint*)gcl_malloc(sizeof(cl_uint)*NUM_PARTICLES/32, isDead, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    
+    countInactiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countActiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countPassiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countWakeUpBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    
+    forceField_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    forceCacheBlur_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     counter_gpu = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(2.0f, &maskSize);
@@ -239,9 +253,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     dispatch_async(queue,
                    ^{
-                     //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
+                       //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
                        gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
                        gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
+                       gcl_memcpy(isDead_gpu, isDead, sizeof(cl_int)*(NUM_PARTICLES/32));
                    });
     
     cl_device_id cl_device = gcl_get_device_id_with_dispatch_queue(queue);
@@ -290,7 +305,7 @@ int curr_read_index, curr_write_index;
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
     CachePropF(mouseAdd);
-
+    
     CachePropF(rectAdd);
     CachePropF(rectAddX);
     CachePropF(rectAddY);
@@ -314,7 +329,7 @@ int curr_read_index, curr_write_index;
     dispatch_sync(queue,
                   ^{
                       //Reset counters
-                      counter->deadParticles = 0; counter->activeParticles = 0; counter->inactiveParticles = 0;
+                      counter->deadParticles = 0; counter->activeParticles = 0; counter->inactiveParticles = 0; counter->deadParticlesBit = 0;
                       gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
                       
                       //Start timer
@@ -326,16 +341,21 @@ int curr_read_index, curr_write_index;
                           1,
                           {0, 0, 0},
                           {NUM_PARTICLES_FRAC, 0, 0},
-                          {0}
+                          {1024}
                       };
-
+                      
                       cl_ndrange ndrangeTex = {
                           2,
                           {0, 0, 0},
                           {TEXTURE_RES, TEXTURE_RES},
                           {32,32,0}
                       };
-                      
+                      cl_ndrange ndrangeTexAdd = {
+                          1,
+                          {0, 0, 0},
+                          {TEXTURE_RES*TEXTURE_RES},
+                          {32}
+                      };
                       
                       
                       /*if(forceTextureBlur){
@@ -381,57 +401,56 @@ int curr_read_index, curr_write_index;
                           rect.s[2] = rectAddWidth;
                           rect.s[3] = rectAddHeight;
                           
-                          rectAdd_kernel(&ndrangeAdd, particle_gpu,pos_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
+                          rectAdd_kernel(&ndrangeAdd, particle_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
                       }
                       
                       
                       double forceTime = gcl_stop_timer(forceTimer);
                       //###############
                       
-            
+                      
                       
                       
                       //############# PASSIVE #############
                       cl_timer passiveTimer = gcl_start_timer();
                       
-//                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                      //                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
                       
-  //                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int));
+                      //                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int));
                       
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
                       
                       
-                      addParticles_kernel(&ndrange, particle_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, ofGetFrameNum()*100.0);
-                      
+                      addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, ofGetFrameNum()*100.0, NUM_PARTICLES_FRAC);
                       
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
-
-                      update_kernel(&ndrange, (Particle*)particle_gpu,  countInactiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
-
+                      
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
                       
                       
                       
-                      //############### SUM ############### 
+                      //############### SUM ###############
                       cl_timer sumTimer = gcl_start_timer();
                       
-                      sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
-
+                      sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
+                      
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
                       
                       
-
+                      
                       
                       
                       //############### WIND ##############
                       cl_timer windTimer = gcl_start_timer();
                       
                       ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
-
+                      
                       ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
                       
                       wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
@@ -444,11 +463,11 @@ int curr_read_index, curr_write_index;
                       forceTimer = gcl_start_timer();
                       if(forceTextureForce){
                           /*cl_ndrange ndrangeForce = {
-                              1,                     // The number of dimensions to use.
-                              {0, 0, 0},
-                              {NUM_PARTICLES_FRAC, 0, 0},
-                              {1024}
-                          };*/
+                           1,                     // The number of dimensions to use.
+                           {0, 0, 0},
+                           {NUM_PARTICLES_FRAC, 0, 0},
+                           {1024}
+                           };*/
                           /* if(forceTextureBlur){
                            forceTextureForce_kernel(&ndrange, particle_gpu, pos_gpu, forceCacheBlur_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES);
                            } else*/ {
@@ -469,11 +488,11 @@ int curr_read_index, curr_write_index;
                       
                       textureFlipFlop = !textureFlipFlop;
                       //###############
-
                       
                       
-
-
+                      
+                      
+                      
                       //      gaussian_blur_kernel(&ndrangeTexNDef, texture_gpu, mask_gpu, texture_blur_gpu, maskSize);
                       
                       
@@ -519,6 +538,8 @@ int curr_read_index, curr_write_index;
                               [self newData:dict];
                           });
                           
+                          
+                          NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
                       }
                       
                       
@@ -805,7 +826,7 @@ int curr_read_index, curr_write_index;
         [self.plotData removeObjectAtIndex:0];
         for(CPTPlot *thePlot in [theGraph allPlots]){
             
-         //   [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
+               [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
         }
     }
     
@@ -815,7 +836,6 @@ int curr_read_index, curr_write_index;
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)theGraph.defaultPlotSpace;
     NSUInteger location       = (currentIndex >= kMaxDataPoints ? currentIndex - kMaxDataPoints + 1 : 0);
     plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromUnsignedInteger(location)
-                        
                                                     length:CPTDecimalFromUnsignedInteger(kMaxDataPoints - 1)];
     
     //    plotSpace.yRange.locationDouble = 1.0;
@@ -828,17 +848,16 @@ int curr_read_index, curr_write_index;
     
     currentIndex++;
     
-  //  if(self.plotData.count  > 1){
+    //  if(self.plotData.count  > 1){
     for(CPTPlot *thePlot in [theGraph allPlots]){
-     //   NSLog(@"Insert at %i   %@",self.plotData.count - 1,arr );
-//        [thePlot insertDataAtIndex:self.plotData.count - 1 numberOfRecords:1];
+        //   NSLog(@"Insert at %i   %@",self.plotData.count - 1,arr );
+                [thePlot insertDataAtIndex:self.plotData.count - 1 numberOfRecords:1];
     }
-   // }
+    // }
 }
 
 -(NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot
 {
-    NSLog(@"Number of records %i",self.plotData.count);
     return self.plotData.count;
 }
 /*

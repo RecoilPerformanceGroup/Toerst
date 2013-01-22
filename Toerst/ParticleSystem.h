@@ -27,26 +27,27 @@
     GLint           shaderLocations[3];
     
     ParticleCounter          *counter;
+    unsigned int          * isDead;
     
     
     dispatch_queue_t queue;
     dispatch_semaphore_t cl_gl_semaphore;
     
     
-    ParticleVBO     *pos_gpu;
+    cl_uint          *isDead_gpu;
     Particle        *particle_gpu;
     cl_image        texture_gpu[2];
     cl_image      texture_blur_gpu;
     cl_image        forceTexture_gpu;
     //cl_image      forceTexture_blur_gpu;
-    cl_int          *countActiveBuffer_gpu;
-    cl_int          *countInactiveBuffer_gpu;
-    cl_int          *countPassiveBuffer_gpu;
-    cl_int          *countWakeUpBuffer_gpu;
-    cl_int          *countCreateParticleBuffer_gpu;
+    cl_uint          *countActiveBuffer_gpu;
+    cl_uint          *countInactiveBuffer_gpu;
+    cl_uint          *countPassiveBuffer_gpu;
+    cl_uint          *countWakeUpBuffer_gpu;
+    cl_uint          *countCreateParticleBuffer_gpu;
     
-    cl_int          *forceField_gpu;
-    cl_int          *forceCacheBlur_gpu;
+    cl_uint          *forceField_gpu;
+    cl_uint          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
     ParticleCounter *counter_gpu;
     
