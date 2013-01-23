@@ -22,6 +22,8 @@ static NSString *updateIdentifier = @"Update";
 static NSString *updateTextureIdentifier = @"Update Texture";
 static NSString *sumIdentifier = @"Sum";
 static NSString *forceIdentifier = @"Forces";
+static NSString *addIdentifier = @"Add";
+static NSString *passiveIdentifier = @"Passive";
 static NSString *inactiveIdentifier = @"Inactive Particles";
 static NSString *activeIdentifier = @"Active Particles";
 static NSString *deadIdentifier = @"Dead Particles";
@@ -429,7 +431,7 @@ int curr_read_index, curr_write_index;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                      
+                     
                       passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
                       
                       passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
@@ -438,7 +440,16 @@ int curr_read_index, curr_write_index;
                       //###################################
                       
                       
+                      //############# ADD #############
+                      cl_timer addTimer = gcl_start_timer();
+                      
+
                       addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum++, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
+                      
+                      double addTime = gcl_stop_timer(addTimer);
+                      //###################################
+                      
+                      
 
                       
                       //###############
@@ -525,8 +536,9 @@ int curr_read_index, curr_write_index;
                       
                       dispatch_semaphore_signal(cl_gl_semaphore);
                       
-                      gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                      
+                     // gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                      //    NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+   
                       if(!firstLoop){
                           dispatch_async(dispatch_get_main_queue(), ^{
                               NSDictionary * dict = @{
@@ -535,6 +547,8 @@ int curr_read_index, curr_write_index;
                               updateTextureIdentifier :@(updateTexTime+updateTime),
                               sumIdentifier : @(sumTime+updateTexTime+updateTime),
                               forceIdentifier : @(forceTime+sumTime+updateTexTime+updateTime),
+                              passiveIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime),
+                              addIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime+addTime),
                               activeIdentifier : @(0.1*counter->activeParticles/(float)NUM_PARTICLES_FRAC),
                               inactiveIdentifier : @(0.1*counter->inactiveParticles/(float)NUM_PARTICLES_FRAC),
                               deadIdentifier : @(0.1*counter->deadParticles/(float)NUM_PARTICLES_FRAC)
@@ -543,7 +557,6 @@ int curr_read_index, curr_write_index;
                           });
                           
                           
-                          NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
                       }
                       
                       
@@ -694,7 +707,7 @@ int curr_read_index, curr_write_index;
     
     
     // Create a plot that uses the data source method
-    for(int i=0;i<8;i++){
+    for(int i=0;i<10;i++){
         CPTScatterPlot *dataSourceLinePlot = [[[CPTScatterPlot alloc] init] autorelease];
         CPTMutableLineStyle *lineStyle = [[dataSourceLinePlot.dataLineStyle mutableCopy] autorelease];
         lineStyle.lineWidth              = 1.0;
@@ -752,6 +765,16 @@ int curr_read_index, curr_write_index;
                                          [NSNumber numberWithFloat:5.0f],
                                          nil];
                 break;
+                
+            case 8:
+                dataSourceLinePlot.identifier = addIdentifier;
+                lineStyle.lineColor              = [CPTColor purpleColor];
+                break;
+            case 9:
+                dataSourceLinePlot.identifier = passiveIdentifier;
+                lineStyle.lineColor              = [CPTColor blackColor];
+                break;
+
                 
             default:
                 break;
