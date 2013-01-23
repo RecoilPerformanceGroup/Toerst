@@ -415,7 +415,20 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
      }
      }
 */
-kernel void rectAdd(global Particle * particles, const float4 rect, const float numAdd, const int numParticles, const float randomSeed,const float randomSeed2){
+
+kernel void rectAdd(global unsigned int * passiveBuffer, const float4 rect, const float numAdd){
+    int bufferId = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    
+    float x = get_global_id(0)/1024.0f;//get_global_size(0);
+    float y = get_global_id(1)/1024.0f;//get_global_size(1);
+    
+    if(x > rect[0] && x < rect[0]+rect[2] && y > rect[1] && y < rect[1]+rect[3])
+    {
+        passiveBuffer[bufferId]++;
+    }
+    
+}
+/*kernel void rectAdd(global Particle * particles, const float4 rect, const float numAdd, const int numParticles, const float randomSeed,const float randomSeed2){
     if(numAdd == 0){
         return;
     }
@@ -456,7 +469,7 @@ kernel void rectAdd(global Particle * particles, const float4 rect, const float 
     }
 
 }
-
+*/
 kernel void textureForce(global Particle* particles, read_only image2d_t image, const float force){
     int id = get_global_id(0);
     int width = get_image_width(image);

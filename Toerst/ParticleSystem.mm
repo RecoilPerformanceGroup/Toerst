@@ -57,7 +57,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
 -(void)initPlugin{
     firstLoop = YES;
-    
+    [self addPropB:@"passiveParticles"];
+
     [[self addPropF:@"mouseForce"] setMaxValue:10];
     [[self addPropF:@"mouseAdd"] setMaxValue:500];
     [self addPropF:@"mouseRadius"];
@@ -356,7 +357,7 @@ int curr_read_index, curr_write_index;
                           1,
                           {0, 0, 0},
                           {TEXTURE_RES*TEXTURE_RES},
-                          {32}
+                          {0}
                       };
                       
                       
@@ -402,8 +403,9 @@ int curr_read_index, curr_write_index;
                           rect.s[1] = rectAddY;
                           rect.s[2] = rectAddWidth;
                           rect.s[3] = rectAddHeight;
+                          rectAdd_kernel(&ndrangeTex, countPassiveBuffer_gpu, rect, rectAdd);
+                          //rectAdd_kernel(&ndrangeAdd, particle_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
                           
-                          rectAdd_kernel(&ndrangeAdd, particle_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
                       }
                       
                       
@@ -431,10 +433,12 @@ int curr_read_index, curr_write_index;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                     
-                      passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
                       
-                      passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
+                      if(PropB(@"passiveParticles")){
+                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                          
+                          passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
+                      }
                       
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
@@ -450,16 +454,6 @@ int curr_read_index, curr_write_index;
                       //###################################
                       
                       
-
-                      
-                      //###############
-                      cl_timer updateTimer = gcl_start_timer();
-                      
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
-                      
-                      double updateTime = gcl_stop_timer(updateTimer);
-                      //###############
-                      
                       
                       //############### SUM ###############
                       cl_timer sumTimer = gcl_start_timer();
@@ -468,12 +462,9 @@ int curr_read_index, curr_write_index;
                       
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
+
+
                       
-                      
-                      
-                      
-                      
-                                           
                       //####################################
                       forceTimer = gcl_start_timer();
                       if(forceTextureForce){
@@ -495,6 +486,23 @@ int curr_read_index, curr_write_index;
                       
                       
                       
+                      
+                      
+                      //###############
+                      cl_timer updateTimer = gcl_start_timer();
+                      
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      
+                      double updateTime = gcl_stop_timer(updateTimer);
+                      //###############
+                      
+                      
+                                         
+                      
+                      
+                      
+                      
+       
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
