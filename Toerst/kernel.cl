@@ -491,35 +491,41 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
     write_imagef(image, coords, color);
 }
 
-kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateParticleBuffer, global int * forceField){
+
+//######################################################
+//  Passive Kernels
+//######################################################
+
+kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateParticleBuffer, global int * forceField, const float passiveMultiplier){
+
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     int force = forceField[id*2] + forceField[id*2+1];
     
     //If no activity and there are inactive particles, make them all passive
     if(activeBuffer[id] == 0 && inactiveBuffer[id] > 0 && force == 0){
-        passiveBuffer[id] += inactiveBuffer[id];
+        passiveBuffer[id] += inactiveBuffer[id]/passiveMultiplier;
         inactiveBuffer[id] = 0;
     }
     
+    
+    
+    bool createAllPassiveParticles = false;
+    
     if(passiveBuffer[id] > 0 && inactiveBuffer[id] > 0){
-        atomic_add(&countCreateParticleBuffer[id], passiveBuffer[id]);
-        passiveBuffer[id] = 0;
+        createAllPassiveParticles = true;
     }
-    
-    if(passiveBuffer[id] > 0 && activeBuffer[id] > 0){
-        countCreateParticleBuffer[id] += passiveBuffer[id];
-        passiveBuffer[id] = 0;
+    else if(passiveBuffer[id] > 0 && activeBuffer[id] > 0){
+        createAllPassiveParticles = true;
     }
-    
-    if(force != 0){
-        countCreateParticleBuffer[id] += passiveBuffer[id];
-        passiveBuffer[id] = 0;
+    else if(force != 0){
+        createAllPassiveParticles = true;
     }
-   /* if(force != 0 && passiveBuffer[id] > 0){
-        atomic_add(&countCreateParticleBuffer[id], 1);
-        passiveBuffer[id]--;
-    }*/
 
+    
+    if(createAllPassiveParticles){
+        countCreateParticleBuffer[id] += passiveBuffer[id]*passiveMultiplier;
+        passiveBuffer[id] = 0;
+    }
 }
 
 
@@ -564,7 +570,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global u
     }
 }
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * countPassiveBuffer){
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * passiveBuffer,  const float passiveMultiplier){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -585,7 +591,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +countPassiveBuffer[global_id]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;
     
     
     //--------
@@ -604,28 +610,28 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     if(lidx != 0){
         diff[0] = count - particleCountSum[tid-1];
     } else if(idx > 0) {
-        diff[0] = count - (countActiveBuffer[global_id-1]+ countInactiveBuffer[global_id-1]*1000 + countPassiveBuffer[global_id-1]*1000.0);
+        diff[0] = count - (countActiveBuffer[global_id-1]+ countInactiveBuffer[global_id-1]*1000 + passiveBuffer[global_id-1]*1000.0*passiveMultiplier);
     }
     
     diff[1] = 0;
     if(lidx != get_local_size(0)-1){
         diff[1] = count - particleCountSum[tid+1];
     } else if(idx < width-1){
-        diff[1] = count - (countActiveBuffer[global_id+1]+ countInactiveBuffer[global_id+1]*1000 + countPassiveBuffer[global_id+1]*1000.0);
+        diff[1] = count - (countActiveBuffer[global_id+1]+ countInactiveBuffer[global_id+1]*1000 + passiveBuffer[global_id+1]*1000.0*passiveMultiplier);
     }
     
     diff[2] = 0;
     if(lidy != 0){
         diff[2] = count - particleCountSum[tid-get_local_size(0)];
     } else if(global_id-width > 0){
-        diff[2] = count - (countActiveBuffer[global_id-width]+ countInactiveBuffer[global_id-width]*1000 + countPassiveBuffer[global_id-width]*1000.0);
+        diff[2] = count - (countActiveBuffer[global_id-width]+ countInactiveBuffer[global_id-width]*1000 + passiveBuffer[global_id-width]*1000.0*passiveMultiplier);
     }
     
     diff[3] = 0;
     if(lidy != get_local_size(1)-1){
         diff[3] = count - particleCountSum[tid+get_local_size(0)];
     } else  if(idy < width-1){
-        diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width]*1000 + countPassiveBuffer[global_id+width]*1000.0);
+        diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width]*1000 + passiveBuffer[global_id+width]*1000.0*passiveMultiplier);
     }
 
     

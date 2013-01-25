@@ -59,6 +59,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 -(void)initPlugin{
     firstLoop = YES;
     [self addPropB:@"passiveParticles"];
+    [[self addPropF:@"passiveMultiplier"] setMinValue:0.01 maxValue:1.0];
     [self addPropB:@"loadImage"];
 
     [[self addPropF:@"mouseForce"] setMaxValue:10];
@@ -320,7 +321,7 @@ int curr_read_index, curr_write_index;
         unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
         for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
             
-            pixelsDst[i] = image.getPixelsRef()[i*4]*0.1;
+            pixelsDst[i] = image.getPixelsRef()[i*4];//*0.1;
         }
         
         dispatch_async(queue,
@@ -469,7 +470,7 @@ int curr_read_index, curr_write_index;
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
                  
                       if(PropB(@"passiveParticles")){
-                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
+                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
                           
                           passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
                       }
@@ -543,7 +544,7 @@ int curr_read_index, curr_write_index;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu );
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") );
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
