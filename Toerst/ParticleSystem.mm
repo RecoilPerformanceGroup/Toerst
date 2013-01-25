@@ -13,7 +13,8 @@
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
-#define NUM_PARTICLES (1024*1024)
+#define NUM_PARTICLES_SQ 1200
+#define NUM_PARTICLES (1024*2048)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 
 
@@ -60,6 +61,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     firstLoop = YES;
     [self addPropB:@"passiveParticles"];
     [[self addPropF:@"passiveMultiplier"] setMinValue:0.01 maxValue:1.0];
+    [[self addPropF:@"passiveBlur"] setMaxValue:0.1];
+    [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];
     [self addPropB:@"loadImage"];
 
     [[self addPropF:@"mouseForce"] setMaxValue:10];
@@ -73,7 +76,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropF:@"particleMinSpeed"];
     [self addPropF:@"particleFadeOutSpeed"];
     [[self addPropF:@"particleFadeInSpeed"] setMaxValue:1000.0];
-    [self addPropF:@"textureForce"];
+    [[self addPropF:@"densityForce"] setMaxValue:0.05];
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
     
@@ -239,7 +242,6 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     
  
-    NSLog(@"aspkdpoasdkpoasdkop askdpo ka     %ui",isDead[1]);
     
     isDead_gpu = (cl_uint*)gcl_malloc(sizeof(cl_uint)*NUM_PARTICLES/32, isDead, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
@@ -253,7 +255,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     counter_gpu = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
-    float * mask =createBlurMask(2.0f, &maskSize);
+    float * mask =createBlurMask(0.5f, &maskSize);
     cout<<"Mask size: "<<maskSize<<endl;
     mask_gpu = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     
@@ -354,7 +356,7 @@ int curr_read_index, curr_write_index;
     CachePropF(particleFadeOutSpeed);
     CachePropF(particleFadeInSpeed);
     
-    CachePropF(textureForce);
+    CachePropF(densityForce);
     
     CachePropF(forceTextureForce);
     CachePropF(forceFieldParticleInfluence);
@@ -406,8 +408,10 @@ int curr_read_index, curr_write_index;
                       //############### FORCE ##############
                       cl_timer forceTimer = gcl_start_timer();
                       
-                      if(textureForce){
-                          textureForce_kernel(&ndrange, particle_gpu, texture_gpu[textureFlipFlop], textureForce*0.1);
+                      if(densityForce){
+                          gaussianBlurImage_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], mask_gpu, texture_gpu[!textureFlipFlop], maskSize);
+                          
+                          textureDensityForce_kernel(&ndrange, particle_gpu, texture_gpu[!textureFlipFlop], densityForce*0.1);
                       }
                       
                       float n = 100.0f;
@@ -473,6 +477,10 @@ int curr_read_index, curr_write_index;
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
                           
                           passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
+                          passiveWasActive = true;
+                      } else if(passiveWasActive){
+                          passiveWasActive = false;
+                          activateAllPassiveParticles_kernel(&ndrangeTex, countPassiveBuffer_gpu, countCreateParticleBuffer_gpu, PropF(@"passiveMultiplier"));
                       }
                       
                       double passiveTime = gcl_stop_timer(passiveTimer);
@@ -562,6 +570,10 @@ int curr_read_index, curr_write_index;
                       }
                       
                       
+                      if(PropF(@"passiveBlur")){
+                          gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
+                      }
+                      
                       
                       cl_ndrange ndrangeReset = {
                           1,
@@ -586,9 +598,9 @@ int curr_read_index, curr_write_index;
                       
                       
                       //DEBUG
-                     /* gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                          NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
-   */
+                  //    gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                    //      NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+   
                       if(!firstLoop){
                           dispatch_async(dispatch_get_main_queue(), ^{
                               NSDictionary * dict = @{

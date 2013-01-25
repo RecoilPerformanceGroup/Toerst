@@ -122,17 +122,19 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
             p->vel  = (float2)(0,0);
+        } else {
+             p->f = (float2)(0,0);
         }
         
         if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
 
             //Make sure its not inactive
-           /* if(p->inactive){
+            if(p->inactive){
                 p->inactive = false;
-                int texIndex = getTexIndex(p->pos, textureWidth);
-                atomic_dec(&countInactiveCache[texIndex]);
+             /*   int texIndex = getTexIndex(p->pos, textureWidth);
+                atomic_dec(&countInactiveCache[texIndex]);*/
             }
-            */
+            
             p->f = (float2)(0,0);
             
             float2 pos = p->pos + p->vel * dt;
@@ -267,7 +269,10 @@ kernel void mouseForce(global int * forceField,  const float2 mousePos, const fl
     float2 diff = mousePos - (float2)(x,y);
     float dist = fast_length(diff);
     if(dist < mouseRadius){
-        float invDistSQ = 1.0f / dist;
+        //float invDistSQ = 1.0f / dist;
+       // float invDistSQ = (mouseRadius - dist)/mouseRadius;
+        float x = (mouseRadius - dist)/mouseRadius;
+        float invDistSQ = (x*x);
         
         diff = fast_normalize(diff);
         diff *= mouseForce * invDistSQ;
@@ -303,9 +308,10 @@ kernel void forceTextureForce(global Particle* particles,  global  int * forceCa
 }
 
 //Force away from density
-kernel void textureForce(global Particle* particles, read_only image2d_t image, const float force){
+kernel void textureDensityForce(global Particle* particles, read_only image2d_t image, const float force){
     int id = get_global_id(0);
-    int width = get_image_width(image);
+    //int width = get_image_width(image);
+    float width = 1024.0f;
     
 	global Particle *p = &particles[id];
     if(!p->dead){
@@ -315,7 +321,9 @@ kernel void textureForce(global Particle* particles, read_only image2d_t image, 
         float count = pixel.x;
         if(count > 0.0){
             float2 dir = (float2)(pixel.y-0.5, pixel.z-0.5);
-            p->f += dir* (float2)(10.0 * force )*(float2)(p->mass-0.3);
+          //  if(fast_length(dir) > 0.2){
+                p->f += dir* (float2)(10.0 * force );//*(float2)(p->mass-0.3);
+            //}
         }
     }
 }
@@ -391,9 +399,10 @@ kernel void sumParticleActivity(global Particle * particles, global unsigned int
 }
 
 kernel void sumParticles(global Particle * particles, global unsigned  int * countActiveBuffer, global unsigned int* isDeadBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
+
     int id = get_global_id(0);
     
-    global Particle *p = &particles[get_global_id(0)];
+    global Particle *p = &particles[id];
     if(!p->dead && !p->inactive){
         int texIndex  = getTexIndex(p->pos, textureWidth);
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
@@ -458,15 +467,15 @@ kernel void sumCounter(global Particle * particles, global unsigned int* isDeadB
      } else {
      atomic_inc(&counter[0].activeParticles);
      }
-    
+   /* if(isDeadBuffer[id/32] & (1<<(id%32))  ){
+        atomic_inc(&counter[0].deadParticlesBit);
+    }*/
     /* if(id%32 == 0){
      atomic_add(&counter[0].deadParticlesBit, popcount(as_int(isDeadBuffer[id/32])));
      
      }*/
-    /*
-     if(isDeadBuffer[id/32] & (1<<(id%32))  ){
-     atomic_inc(&counter[0].deadParticlesBit);
-     }*/
+    
+
 
 }
 
@@ -531,6 +540,15 @@ kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, gl
 }
 
 
+kernel void activateAllPassiveParticles(global unsigned int * passiveBuffer,  global unsigned int * countCreateBuffer, const float passiveMultiplier ){
+    int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
+    
+    
+    countCreateBuffer[id] += COUNT_CREATE_BUFFER_MULT*passiveBuffer[id]*passiveMultiplier;
+    passiveBuffer[id] = 0;
+    
+}
+
 
 kernel void passiveParticlesParticleUpdate(global Particle * particles, global unsigned int * passiveBuffer, global unsigned int * wakeUpBuffer, const int textureWidth, local int * wakeUpCache, global unsigned int *isDeadBuffer){
     
@@ -571,6 +589,8 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global u
         }
     }
 }
+
+
 
 kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * passiveBuffer,  const float passiveMultiplier){
     int idx = get_global_id(0);
@@ -728,10 +748,38 @@ kernel void resetCountCache(global unsigned  int * countInactiveBuffer,global un
 
 
 
+__kernel void gaussianBlurBuffer(global unsigned int * buffer, constant float * mask, private int maskSize, const float ammount, const float fadeAmmount){
+    int idx = get_global_id(0);
+    int idy = get_global_id(1);
+    int width = get_global_size(0);
+    
+    int global_id = idy*width + idx;
+    
+    // Collect neighbor values and multiply with Gaussian
+    private float sum = 0.0f;
+    
+    for(int a = -maskSize; a < maskSize+1; a++) {
+        for(int b = -maskSize; b < maskSize+1; b++) {
+            
+            if(idx+a > 0 && idy+b > 0 && idx+a < width && idx+b < width){
+                int global_id_2 = (idy+b)*width + (idx+a);
+                float bufferVal = buffer[global_id_2];
+                sum += mask[ a + maskSize+(b+maskSize)*(maskSize*2+1)]* bufferVal;
+            }
+        }
+    }
+    
+    //barrier(CLK_GLOBAL_MEM_FENCE);
+    //forceCache[global_id*2]++;
+    
+    float r = convert_float(buffer[global_id]);
+    
+    buffer[global_id] =  convert_uint_sat_rtp((ammount*sum + r*(1.0f-ammount) )*fadeAmmount);
+}
 
 
 
-__kernel void gaussian_blur(
+__kernel void gaussianBlurImage(
                             __read_only image2d_t image,
                             __constant float * mask,
                             write_only image2d_t blurredImage,

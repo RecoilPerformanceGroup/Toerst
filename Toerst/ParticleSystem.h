@@ -70,6 +70,7 @@
     NSMutableArray *_plotData;
     
     int frameNum;
+    bool passiveWasActive;
 }
 
 @property (readwrite) float clTime;
