@@ -20,7 +20,7 @@
     [ocp addHeader:@"Setup"];
     
     [ocp addPlugin:[[Midi alloc] init]];
-    [ocp addPlugin:[[Keystoner alloc] initWithSurfaces:[NSArray arrayWithObjects:@"Floor", @"Triangle", nil]] midiChannel:2 ];
+    [ocp addPlugin:[[Keystoner alloc] initWithSurfaces:[NSArray arrayWithObjects:@"Floor", nil]] midiChannel:2 ];
     [ocp addPlugin:[[OSCControl alloc] init]];
     
     [ocp addPlugin:[[ParticleSystem alloc] init]];

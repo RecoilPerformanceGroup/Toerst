@@ -7,12 +7,13 @@
 //
 
 #import "ParticleSystem.h"
+#import <ofxCocoaPlugins/Keystoner.h>
 
 #define TEXTURE_RES (1024)
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*1024*3)
-#define NUM_PARTICLES (1024*2000)
+#define NUM_PARTICLES (1024*1024)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 
 
@@ -58,6 +59,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 -(void)initPlugin{
     firstLoop = YES;
     [self addPropB:@"passiveParticles"];
+    [self addPropB:@"loadImage"];
 
     [[self addPropF:@"mouseForce"] setMaxValue:10];
     [[self addPropF:@"mouseAdd"] setMaxValue:500];
@@ -303,6 +305,36 @@ int curr_read_index, curr_write_index;
 }
 
 -(void)draw:(NSDictionary *)drawingInformation{
+    if(PropB(@"loadImage")){
+        SetPropB(@"loadImage",false);
+        
+        
+        
+        ofImage image;
+        image.setUseTexture(false);
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
+        
+        unsigned char * pixelsSrc = image.getPixels();
+        NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
+        
+        unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+        for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+            
+            pixelsDst[i] = image.getPixelsRef()[i*4]*0.1;
+        }
+        
+        dispatch_async(queue,
+                       ^{
+                           gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+                       });
+        
+
+        
+        
+        NSLog(@"Load iamge  %i",loaded);
+    }
+    
+    
     vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     
     CachePropF(mouseForce);
@@ -370,7 +402,7 @@ int curr_read_index, curr_write_index;
                       //------------------
                       
                       
-                      //###############
+                      //############### FORCE ##############
                       cl_timer forceTimer = gcl_start_timer();
                       
                       if(textureForce){
@@ -410,17 +442,19 @@ int curr_read_index, curr_write_index;
                       
                       
                       double forceTime = gcl_stop_timer(forceTimer);
-                      //###############
+                      //#############################
+                      
+                      
                       
                       //############### WIND ##############
                       cl_timer windTimer = gcl_start_timer();
-                      
-                      ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
-                      
-                      ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
-                      
-                      wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
-                      
+                      if(PropF(@"globalWind") || PropF(@"pointWind")){
+                          ofVec2f * globalWind = new ofVec2f(PropF(@"globalWindX")*PropF(@"globalWind"), PropF(@"globalWindY")*PropF(@"globalWind"));
+                          
+                          ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
+                          
+                          wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
+                      }
                       double windTime = gcl_stop_timer(windTimer);
                       //####################################
                       
@@ -433,7 +467,7 @@ int curr_read_index, curr_write_index;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                      
+                 
                       if(PropB(@"passiveParticles")){
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu);
                           
@@ -447,9 +481,9 @@ int curr_read_index, curr_write_index;
                       //############# ADD #############
                       cl_timer addTimer = gcl_start_timer();
                       
-
-                      addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum++, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
-                      
+                      for(int i=0;i<5;i++){
+                          addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum+=10, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
+                      }
                       double addTime = gcl_stop_timer(addTimer);
                       //###################################
                       
@@ -460,10 +494,13 @@ int curr_read_index, curr_write_index;
                       
                       sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
                       
+                      
+                      sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
+                      
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
-
-
+                      
+                      
                       
                       //####################################
                       forceTimer = gcl_start_timer();
@@ -542,11 +579,15 @@ int curr_read_index, curr_write_index;
                       //--------------
                       
                       
+                      
+                      
                       dispatch_semaphore_signal(cl_gl_semaphore);
                       
-                     // gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                      //    NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
-   
+                      
+                      //DEBUG
+                     /* gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                          NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+   */
                       if(!firstLoop){
                           dispatch_async(dispatch_get_main_queue(), ^{
                               NSDictionary * dict = @{
@@ -573,8 +614,11 @@ int curr_read_index, curr_write_index;
     dispatch_semaphore_wait(cl_gl_semaphore, DISPATCH_TIME_FOREVER);
     
     
+    
+    
+    
     ofEnableAlphaBlending();
-    ofBackground(0.0*255,0.0*255,0.0*255);
+   // ofBackground(0.0*255,0.0*255,0.0*255);
     
     
     ofSetColor(255,255,255);
@@ -589,6 +633,9 @@ int curr_read_index, curr_write_index;
     glEnable( GL_TEXTURE_2D );
     glBindTexture( GL_TEXTURE_2D, texture[textureFlipFlop] );
     
+    
+    ApplySurface(@"Floor");
+
     glBegin(GL_QUADS);
     
     glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
@@ -596,6 +643,8 @@ int curr_read_index, curr_write_index;
     glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
     glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
     glEnd();
+    
+    PopSurface();
     
     /*
      //   ofSetColor(255, 255, 255, 100);
@@ -651,7 +700,8 @@ int curr_read_index, curr_write_index;
     }
     
     
-    
+    ApplySurface(@"Floor");
+
     
     //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     ofSetColor(100, 100, 100);
@@ -661,6 +711,7 @@ int curr_read_index, curr_write_index;
     
     firstLoop = NO;
     
+    PopSurface();
     
     
 }
