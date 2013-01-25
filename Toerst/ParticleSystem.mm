@@ -63,7 +63,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropB:@"loadImage"];
 
     [[self addPropF:@"mouseForce"] setMaxValue:10];
-    [[self addPropF:@"mouseAdd"] setMaxValue:500];
+    [[self addPropF:@"mouseAdd"] setMaxValue:100.0];
     [self addPropF:@"mouseRadius"];
     [self addPropF:@"generalDt"];
     [[self addPropF:@"generalUpdateFraction"] setMinValue:0.1 maxValue:1.0];

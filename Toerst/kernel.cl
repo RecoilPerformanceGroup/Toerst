@@ -26,6 +26,7 @@ typedef struct {
 
 #define COUNT_MULT 100.0f
 #define FORCE_CACHE_MULT 1000.f
+#define COUNT_CREATE_BUFFER_MULT 100.0f
 
 
 int getTexIndex(float2 pos, int textureWidth){
@@ -199,7 +200,8 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
     
     private bool isDead[32];
     
-    int numberToAdd = countCreateBuffer[global_id];
+    
+    int numberToAdd = countCreateBuffer[global_id]/COUNT_CREATE_BUFFER_MULT;
     
     if(numberToAdd > 0){
         
@@ -247,7 +249,7 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
             isDeadBuffer[bufferId] = store;
         }
 
-        countCreateBuffer[global_id] = numberToAdd;
+        countCreateBuffer[global_id] = numberToAdd*COUNT_CREATE_BUFFER_MULT;
     }
 }
 
@@ -339,7 +341,7 @@ kernel void wind(global int * forceField, const float2 globalWind, const float3 
 //------------------------------------------------------------------------------------------------------------
 
 
-kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addPos, const float mouseRadius, const int numAdd){
+kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addPos, const float mouseRadius, const float numAdd){
     if(numAdd == 0){
         return;
     }
@@ -351,7 +353,7 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
     float2 diff = addPos - (float2)(x,y);
     float dist = fast_length(diff);
     if(dist < mouseRadius){
-        countCreateBuffer[index] = 1;
+        countCreateBuffer[index] += numAdd*(mouseRadius-dist)/mouseRadius;
     }
 }
 
@@ -364,7 +366,7 @@ kernel void rectAdd(global unsigned int * passiveBuffer, const float4 rect, cons
     
     if(x > rect[0] && x < rect[0]+rect[2] && y > rect[1] && y < rect[1]+rect[3])
     {
-        passiveBuffer[bufferId]++;
+        passiveBuffer[bufferId] += numAdd;
     }
     
 }
@@ -496,7 +498,7 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
 //  Passive Kernels
 //######################################################
 
-kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateParticleBuffer, global int * forceField, const float passiveMultiplier){
+kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier){
 
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     int force = forceField[id*2] + forceField[id*2+1];
@@ -523,7 +525,7 @@ kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, gl
 
     
     if(createAllPassiveParticles){
-        countCreateParticleBuffer[id] += passiveBuffer[id]*passiveMultiplier;
+        countCreateBuffer[id] += COUNT_CREATE_BUFFER_MULT*passiveBuffer[id]*passiveMultiplier;
         passiveBuffer[id] = 0;
     }
 }
