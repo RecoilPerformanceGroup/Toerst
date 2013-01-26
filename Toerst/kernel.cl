@@ -377,6 +377,32 @@ kernel void wind(global int * forceField, const float2 globalWind, const float3 
     forceField[index*2+1] += pointDir.y*pointWind.z;
 }
 
+kernel void whirl(global int * forceField, const float amount, const float radius , const int posX, const int posY, const float gravity){
+    int id = get_global_id(1)*get_global_size(0) + get_global_id(0);
+
+    float2 p = (float2)(get_global_id(0), get_global_id(1));
+    
+    float2 dir = (float2)(posX,posY) - p;
+    
+    float dist = fast_length(dir);
+    
+    if(dist < radius){
+        dir = fast_normalize(dir);
+        
+        float l = radius-dist;
+        dir *= l * amount;
+        
+        float2 hat = (float2)(-dir.y, dir.x);
+        
+        
+        forceField[id*2] += hat.x*1.0 + dir.x*gravity;
+        forceField[id*2+1] += hat.y*1.0 + dir.y*gravity;
+    }
+    
+    
+    
+}
+
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
 
@@ -439,8 +465,10 @@ kernel void sumParticles(global Particle * particles, global unsigned  int * cou
         int texIndex  = getTexIndex(p->pos, textureWidth);
         if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
             if(forceFieldParticleInfluence > 0){
-                atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
-                atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+                forceField[texIndex*2] += p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence;
+                forceField[texIndex*2+1] += p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence;
+//                atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+  //              atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
             }
         }
     }

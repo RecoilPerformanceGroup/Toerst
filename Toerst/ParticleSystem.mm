@@ -64,7 +64,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"passiveBlur"] setMaxValue:0.1];
     [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];
     [self addPropB:@"loadImage"];
-
+    
     [[self addPropF:@"mouseForce"] setMaxValue:10];
     [[self addPropF:@"mouseAdd"] setMaxValue:100.0];
     [self addPropF:@"mouseRadius"];
@@ -107,6 +107,11 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
     
     
+    [[self addPropF:@"whirlAmount"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"whirlRadius"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"whirlX"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"whirlY"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"whirlGravity"] setMinValue:0 maxValue:1];
     
 }
 
@@ -115,10 +120,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 -(void)setup{
     glewInit();
     
-//    ParticleVBO	*			particlesVboData;
+    //    ParticleVBO	*			particlesVboData;
     Particle *			particles;
     
-   // particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
+    // particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
     particles = (Particle*) malloc(NUM_PARTICLES* sizeof(Particle));
     counter = (ParticleCounter*) malloc(sizeof(ParticleCounter));
     
@@ -139,18 +144,18 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         //	particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
         /*        particlesVboData[i].pos.s[0] = -1;
          particlesVboData[i].pos.s[1] = -1;*/
-     /*   particlesVboData[i].pos.s[0] = p.pos.s[0];
-        particlesVboData[i].pos.s[1] = p.pos.s[1];
-        particlesVboData[i].color.s[0] = 1;
-        particlesVboData[i].color.s[1] = 1;
-        particlesVboData[i].color.s[2] = 1;
-        particlesVboData[i].color.s[3] = 0.5;*/
+        /*   particlesVboData[i].pos.s[0] = p.pos.s[0];
+         particlesVboData[i].pos.s[1] = p.pos.s[1];
+         particlesVboData[i].color.s[0] = 1;
+         particlesVboData[i].color.s[1] = 1;
+         particlesVboData[i].color.s[2] = 1;
+         particlesVboData[i].color.s[3] = 0.5;*/
     }
     
     isDead = (cl_uint*)malloc(sizeof(cl_uint)*NUM_PARTICLES/32);
     for(int i=0;i<NUM_PARTICLES/32;i++){
-                isDead[i] = 0xFFFFFFFF;
-//        isDead[i] = 0x0;
+        isDead[i] = 0xFFFFFFFF;
+        //        isDead[i] = 0x0;
     }
     
     
@@ -164,7 +169,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_DYNAMIC_COPY);
-   // glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STATIC_DRAW);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STREAM_DRAW);
     
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -331,7 +336,7 @@ static dispatch_once_t onceToken;
                            delete pixelsDst;
                        });
         
-
+        
         
         
         NSLog(@"Load iamge  %i",loaded);
@@ -346,7 +351,7 @@ static dispatch_once_t onceToken;
     });
     
     vector<ofVec2f> trackerPoints;
-
+    
     if(trackers.size()> 0){
         for(int i=0;i<50;i++){
             float a = i/(float)50;
@@ -424,7 +429,7 @@ static dispatch_once_t onceToken;
                       
                       if(trackerPoints.size()> 0){
                           cl_timer bodyTimer = gcl_start_timer();
-
+                          
                           
                           for(int i=0;i<trackerPoints.size();i++){
                               bodyBlobData[i*2] = trackerPoints[i].x;
@@ -442,7 +447,7 @@ static dispatch_once_t onceToken;
                           
                           minX = floor(minX / 64.0f)*64.0;
                           minY = floor(minY / 64.0f)*64.0;
-
+                          
                           maxX = ceil(maxX / 64.0f)*64.0;
                           maxY = ceil(maxY / 64.0f)*64.0;
                           
@@ -456,32 +461,32 @@ static dispatch_once_t onceToken;
                           };
                           
                           
-                          NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
+                          //   NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
-
+                          
                           
                           gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*trackerPoints.size()*2);
                           
                           updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, trackerPoints.size());
                           
-                          NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
+                          // NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
-
+                          
                           
                           bool flip = false;
-                          for(int i=0;i<50;i++){
-                              updateBodyFieldStep2_kernel(&ndrangeBody, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*2048);
+                          for(int i=0;i<40;i++){
+                              updateBodyFieldStep2_kernel(&ndrangeBody, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
                               flip = !flip;
                           }
-                          NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
+                          // NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
-
+                          
                           
                           updateBodyFieldStep3_kernel(&ndrangeBody, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
                           
-                          NSLog(@"Step 3 %f",gcl_stop_timer(bodyTimer));
+                          //   NSLog(@"Step 3 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
-
+                          
                           
                       }
                       
@@ -499,14 +504,14 @@ static dispatch_once_t onceToken;
                           textureDensityForce_kernel(&ndrange, particle_gpu, texture_gpu[!textureFlipFlop], densityForce*0.1);
                       }
                       
-
+                      
                       for(int i=0;i<trackers.size();i++){
                           cl_float2 mousePos;
                           mousePos.s[0] = trackers[i].y;
                           mousePos.s[1] = 1-trackers[i].x;
                           /*if(mouseForce){
-                              mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
-                          }*/
+                           mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
+                           }*/
                           
                           if(mouseAdd){
                               mouseAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, mousePos, mouseRadius, mouseAdd);
@@ -538,11 +543,13 @@ static dispatch_once_t onceToken;
                           ofVec3f * pointWind = new ofVec3f(PropF(@"pointWindX"), PropF(@"pointWindY"),PropF(@"pointWind"));
                           
                           wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
+                          
                       }
+                      whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
                       double windTime = gcl_stop_timer(windTimer);
                       //####################################
                       
-
+                      
                       
                       
                       
@@ -551,7 +558,7 @@ static dispatch_once_t onceToken;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                 
+                      
                       if(PropB(@"passiveParticles")){
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
                           
@@ -582,7 +589,7 @@ static dispatch_once_t onceToken;
                       
                       sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
                       
-                      
+                      //DEBUG
                       //sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
                       
                       double sumTime = gcl_stop_timer(sumTimer);
@@ -622,12 +629,12 @@ static dispatch_once_t onceToken;
                       //###############
                       
                       
-                                         
                       
                       
                       
                       
-       
+                      
+                      
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
@@ -677,9 +684,9 @@ static dispatch_once_t onceToken;
                       
                       
                       //DEBUG
-                  //    gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                    //      NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
-   
+                      //    gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                      //      NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+                      
                       if(!firstLoop){
                           dispatch_async(dispatch_get_main_queue(), ^{
                               NSDictionary * dict = @{
@@ -710,7 +717,7 @@ static dispatch_once_t onceToken;
     
     
     ofEnableAlphaBlending();
-   // ofBackground(0.0*255,0.0*255,0.0*255);
+    // ofBackground(0.0*255,0.0*255,0.0*255);
     
     
     ofSetColor(255,255,255);
@@ -727,7 +734,7 @@ static dispatch_once_t onceToken;
     
     
     ApplySurface(@"Floor");
-
+    
     glBegin(GL_QUADS);
     
     glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
@@ -793,7 +800,7 @@ static dispatch_once_t onceToken;
     
     
     ApplySurface(@"Floor");
-
+    
     
     //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     ofSetColor(100, 100, 100);
@@ -925,7 +932,7 @@ static dispatch_once_t onceToken;
                 dataSourceLinePlot.identifier = passiveIdentifier;
                 lineStyle.lineColor              = [CPTColor blackColor];
                 break;
-
+                
                 
             default:
                 break;
@@ -1004,7 +1011,7 @@ static dispatch_once_t onceToken;
         [self.plotData removeObjectAtIndex:0];
         for(CPTPlot *thePlot in [theGraph allPlots]){
             
-               [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
+            [thePlot deleteDataInIndexRange:NSMakeRange(0, 1)];
         }
     }
     
@@ -1029,7 +1036,7 @@ static dispatch_once_t onceToken;
     //  if(self.plotData.count  > 1){
     for(CPTPlot *thePlot in [theGraph allPlots]){
         //   NSLog(@"Insert at %i   %@",self.plotData.count - 1,arr );
-                [thePlot insertDataAtIndex:self.plotData.count - 1 numberOfRecords:1];
+        [thePlot insertDataAtIndex:self.plotData.count - 1 numberOfRecords:1];
     }
     // }
 }
