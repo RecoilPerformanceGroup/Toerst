@@ -16,7 +16,7 @@
 #define NUM_PARTICLES_SQ 1200
 #define NUM_PARTICLES (1024*2048)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
-
+#define NUM_BLOB_POINTS 300
 
 
 static NSString *totalIdentifier = @"Total";
@@ -231,33 +231,32 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     // pos_gpu = (ParticleVBO*)gcl_gl_create_ptr_from_buffer(vbo);
     
-    texture_gpu[0] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[0]);
-    texture_gpu[1] = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[1]);
-    forceTexture_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture);
-    texture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture_blur);
+    texture_gpu[0]      = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[0]);
+    texture_gpu[1]      = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture[1]);
+    forceTexture_gpu    = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture);
+    texture_blur_gpu    = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, texture_blur);
     //    forceTexture_blur_gpu = gcl_gl_create_image_from_texture(GL_TEXTURE_2D, 0, forceTexture_blur);
     
-    particle_gpu  = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles,
-                                          CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    particle_gpu            = (Particle*)gcl_malloc(sizeof(Particle) * NUM_PARTICLES, particles, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
+    isDead_gpu              = (cl_uint*)gcl_malloc(sizeof(cl_uint)*NUM_PARTICLES/32, isDead, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
- 
-    
-    isDead_gpu = (cl_uint*)gcl_malloc(sizeof(cl_uint)*NUM_PARTICLES/32, isDead, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
-    
-    countInactiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countActiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countPassiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-//    countWakeUpBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countInactiveBuffer_gpu  = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countActiveBuffer_gpu   = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countPassiveBuffer_gpu  = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
-    forceField_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
-    forceCacheBlur_gpu = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
-    counter_gpu = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
+    bodyBlob_gpu           = (cl_int*) gcl_malloc(sizeof(cl_int)*NUM_BLOB_POINTS*2,  nil, CL_MEM_READ_ONLY );
+    bodyField_gpu[0]           = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
+    bodyField_gpu[1]           = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
+    
+    forceField_gpu          = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    forceCacheBlur_gpu      = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    counter_gpu             = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(0.5f, &maskSize);
     cout<<"Mask size: "<<maskSize<<endl;
-    mask_gpu = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
+    mask_gpu                        = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     
     dispatch_async(queue,
                    ^{
@@ -307,6 +306,7 @@ int curr_read_index, curr_write_index;
     
 }
 
+static dispatch_once_t onceToken;
 -(void)draw:(NSDictionary *)drawingInformation{
     if(PropB(@"loadImage")){
         SetPropB(@"loadImage",false);
@@ -317,7 +317,6 @@ int curr_read_index, curr_write_index;
         image.setUseTexture(false);
         bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
         
-        unsigned char * pixelsSrc = image.getPixels();
         NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
         
         unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
@@ -329,6 +328,7 @@ int curr_read_index, curr_write_index;
         dispatch_async(queue,
                        ^{
                            gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+                           delete pixelsDst;
                        });
         
 
@@ -339,6 +339,21 @@ int curr_read_index, curr_write_index;
     
     
     vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
+    
+    
+    dispatch_once(&onceToken, ^{
+        bodyBlobData = (int*)malloc(sizeof(int)*NUM_BLOB_POINTS*2);
+    });
+    
+    vector<ofVec2f> trackerPoints;
+
+    if(trackers.size()> 0){
+        for(int i=0;i<50;i++){
+            float a = i/(float)50;
+            ofVec2f p = ofVec2f(sin(a*TWO_PI), cos(a*TWO_PI))*20* (sin(a*TWO_PI*4)+3) + 1024*ofVec2f(trackers[0].y,1-trackers[0].x);
+            trackerPoints.push_back(p);
+        }
+    }
     
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
@@ -400,6 +415,76 @@ int curr_read_index, curr_write_index;
                        gaussianBlurSum_kernel(&ndrangeGaus,  forceField_gpu, forceCacheBlur_gpu, TEXTURE_RES, mask_gpu, maskSize);
                        }*/
                       
+                      
+                      //------------------
+                      //BODY
+                      //------------------
+                      int minX, maxX, minY, maxY;
+                      minX = maxX = minY = maxY = -1;
+                      
+                      if(trackerPoints.size()> 0){
+                          cl_timer bodyTimer = gcl_start_timer();
+
+                          
+                          for(int i=0;i<trackerPoints.size();i++){
+                              bodyBlobData[i*2] = trackerPoints[i].x;
+                              bodyBlobData[i*2+1] = trackerPoints[i].y;
+                              
+                              if(trackerPoints[i].x < minX || minX == -1)
+                                  minX = trackerPoints[i].x;
+                              if(trackerPoints[i].x > maxX || maxX == -1)
+                                  maxX = trackerPoints[i].x;
+                              if(trackerPoints[i].y < minY || minY == -1)
+                                  minY = trackerPoints[i].y;
+                              if(trackerPoints[i].y > maxY || maxY == -1)
+                                  maxY = trackerPoints[i].y;
+                          }
+                          
+                          minX = floor(minX / 64.0f)*64.0;
+                          minY = floor(minY / 64.0f)*64.0;
+
+                          maxX = ceil(maxX / 64.0f)*64.0;
+                          maxY = ceil(maxY / 64.0f)*64.0;
+                          
+                          
+                          //NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+                          cl_ndrange ndrangeBody = {
+                              2,
+                              {minX, minY, 0},
+                              {maxX-minX, maxY-minY},
+                              {0}
+                          };
+                          
+                          
+                          NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
+                          bodyTimer = gcl_start_timer();
+
+                          
+                          gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*trackerPoints.size()*2);
+                          
+                          updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, trackerPoints.size());
+                          
+                          NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
+                          bodyTimer = gcl_start_timer();
+
+                          
+                          bool flip = false;
+                          for(int i=0;i<50;i++){
+                              updateBodyFieldStep2_kernel(&ndrangeBody, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*2048);
+                              flip = !flip;
+                          }
+                          NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
+                          bodyTimer = gcl_start_timer();
+
+                          
+                          updateBodyFieldStep3_kernel(&ndrangeBody, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
+                          
+                          NSLog(@"Step 3 %f",gcl_stop_timer(bodyTimer));
+                          bodyTimer = gcl_start_timer();
+
+                          
+                      }
+                      
                       //------------------
                       // Forces
                       //------------------
@@ -414,20 +499,14 @@ int curr_read_index, curr_write_index;
                           textureDensityForce_kernel(&ndrange, particle_gpu, texture_gpu[!textureFlipFlop], densityForce*0.1);
                       }
                       
-                      float n = 100.0f;
-                      cl_ndrange ndrangeAdd = {
-                          1,
-                          {0, 0, 0},
-                          {n, 0, 0},
-                          {0}
-                      };
+
                       for(int i=0;i<trackers.size();i++){
                           cl_float2 mousePos;
                           mousePos.s[0] = trackers[i].y;
                           mousePos.s[1] = 1-trackers[i].x;
-                          if(mouseForce){
+                          /*if(mouseForce){
                               mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
-                          }
+                          }*/
                           
                           if(mouseAdd){
                               mouseAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, mousePos, mouseRadius, mouseAdd);
@@ -504,7 +583,7 @@ int curr_read_index, curr_write_index;
                       sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
                       
                       
-                      sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
+                      //sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
                       
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
@@ -552,7 +631,7 @@ int curr_read_index, curr_write_index;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") );
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") , bodyField_gpu[0]);
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
@@ -581,7 +660,7 @@ int curr_read_index, curr_write_index;
                           {TEXTURE_RES*TEXTURE_RES},
                           {0}
                       };
-                      resetCountCache_kernel(&ndrangeReset, countInactiveBuffer_gpu, countActiveBuffer_gpu, forceField_gpu);
+                      resetCache_kernel(&ndrangeReset, countInactiveBuffer_gpu, countActiveBuffer_gpu, forceField_gpu,bodyField_gpu[0]);
                       
                       
                       

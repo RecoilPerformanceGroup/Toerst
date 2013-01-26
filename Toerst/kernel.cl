@@ -37,6 +37,38 @@ int getTexIndex(float2 pos, int textureWidth){
 
 }
 
+
+bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
+    /*
+    int   i, j=polySides-1 ;
+    bool  oddNodes=false      ;
+    
+    for (i=0; i<polySides; i++) {
+        if (polyPoints[i*2+1]<point.y && polyPoints[j*2+1]>=point.y
+            ||  polyPoints[j*2+1]<point.y && polyPoints[i*2+1]>=point.y) {
+            if (polyPoints[i*2]+(point.y-polyPoints[i*2+1])/(polyPoints[j*2+1]-polyPoints[i*2+1])*(polyPoints[j*2]-polyPoints[i*2])<point.x) {
+                oddNodes=!oddNodes; }}
+        j=i; }
+    
+    return oddNodes;
+}*/
+
+ 
+    int   i, j=polySides-1 ;
+    bool  oddNodes=false ;
+    
+    for (i=0; i<polySides; i++) {
+        int2 pi = (int2)(polyPoints[i*2],polyPoints[i*2+1]);
+        int2 pj = (int2)(polyPoints[j*2],polyPoints[j*2+1]);
+        
+        if ((pi.y< point.y && pj.y>= point.y
+             ||   pj.y< point.y && pi.y>= point.y)
+            &&  (pi.x<= point.x || pj.x<= point.x)) {
+            oddNodes^=(pi.x+(point.y-pi.y)/(pj.y-pi.y)*(pj.x-pi.x)<point.x); }
+        j=i; }
+    
+    return oddNodes; }
+
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 
@@ -504,6 +536,189 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
 
 
 //######################################################
+//  Body Kernels
+//######################################################
+
+kernel void updateBodyFieldStep1(global int * bodyField, global int * bodyBlob, const int numBlobPoints){
+
+    int x = get_global_id(0);// + get_global_offset(0);
+    int y = get_global_id(1);// + get_global_offset(1);
+    
+    int id = y * 1024 +  x;
+ 
+    if(pointInPolygon(numBlobPoints, bodyBlob, (int2)(x,y))){
+        bodyField[id*3] = -1;
+    } else {
+        bodyField[id*3] = -2;
+    }
+    
+    for(int i=0;i<numBlobPoints;i++){
+        if(bodyBlob[i*2] == x && bodyBlob[i*2+1] == y ){
+            bodyField[id*3] = 1;
+            bodyField[id*3+1] = 0;
+            bodyField[id*3+2] = 0;
+        }
+    }
+    
+    //   bodyField[id*3] = 100;
+}
+
+kernel void updateBodyFieldStep2(global int * bodyFieldR, global int * bodyFieldW, const int step, local int * bodyFieldCache){
+    int x = get_global_id(0);// + get_global_offset(0);
+    int y = get_global_id(1);// + get_global_offset(1);
+    
+    int id = y * 1024 +  x;
+    int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
+    
+    
+    bodyFieldW[id*3] = bodyFieldR[id*3];
+    bodyFieldW[id*3+1] = bodyFieldR[id*3+1];
+    bodyFieldW[id*3+2] = bodyFieldR[id*3+2];
+    
+    bodyFieldCache[lid] = bodyFieldR[id*3];
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(bodyFieldR[id*3] == -1){
+        if(x > 0 && x < 1024-1 && y > 0 && y < 1024-1){
+            bool edge = false;
+            bool outerEdge = false;
+            float2 dir = (float2)(0,0);
+            
+            int w;
+            if(get_local_id(0) > 0){
+                w = bodyFieldCache[lid-1];
+            } else {
+                w = bodyFieldR[(id-1)*3];
+            }
+            if(w > 0){
+                edge = true;
+                dir += (float2)(-10,0);
+            } else if(w == -2){
+                outerEdge = true;
+            }
+            
+            
+            int e;
+            if(get_local_id(0) < get_local_size(0)-1){
+                e = bodyFieldCache[lid+1];
+            } else {
+                e = bodyFieldR[(id+1)*3];
+            }
+            if(e > 0){
+                edge = true;
+                dir += (float2)(10,0);
+            } else if(e == -2){
+                outerEdge = true;
+            }
+
+            int n;
+            if(get_local_id(1) > 0){
+                n = bodyFieldCache[lid-get_local_size(0)];
+            } else {
+                n = bodyFieldR[(id-1024)*3];
+            }
+            if(n > 0){
+                edge = true;
+                dir += (float2)(0,-10);
+            } else if(n == -2){
+                outerEdge = true;
+            }
+
+            int s;
+            if(get_local_id(1) < get_local_size(1)-1){
+                s = bodyFieldCache[lid+get_local_size(0)];
+            } else {
+                s = bodyFieldR[(id+1024)*3];
+            }
+            if(s > 0){
+                edge = true;
+                dir += (float2)(0,10);
+            } else if(s == -2){
+                outerEdge = true;
+            }
+            
+            
+            int nw;
+            if(get_local_id(0) > 0 && get_local_id(1) > 0){
+                nw = bodyFieldCache[lid-get_local_size(0)-1];
+            } else {
+                nw = bodyFieldR[(id-1024-1)*3];
+            }
+            if(nw > 0){
+                edge = true;
+                dir += (float2)(-7,-7);
+            }
+
+            int ne;
+            if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) > 0){
+                ne = bodyFieldCache[lid-get_local_size(0)+1];
+            } else {
+                ne = bodyFieldR[(id-1024+1)*3];
+            }
+            if(ne > 0){
+                edge = true;
+                dir += (float2)(7,-7);
+            }
+
+            int se;
+            if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) < get_local_size(1)-1){
+                se = bodyFieldCache[lid+get_local_size(0)+1];
+            } else {
+                se = bodyFieldR[(id+1024+1)*3];
+            }
+            if(se > 0){
+                edge = true;
+                dir += (float2)(7,7);
+            }
+
+            int sw;
+            if(get_local_id(0) > 0 && get_local_id(1) < get_local_size(1)-1){
+                sw = bodyFieldCache[lid+get_local_size(0)-1];
+            } else {
+                sw = bodyFieldR[(id+1024-1)*3];
+            }
+            if(sw > 0){
+                edge = true;
+                dir += (float2)(-7,7);
+            }
+
+            if(outerEdge){
+                bodyFieldW[id*3] = 1;
+                bodyFieldW[id*3+1] = 0;
+                bodyFieldW[id*3+2] = 0;
+                
+                
+                
+            } else if(edge){
+                bodyFieldW[id*3] = step+2;
+              
+                dir = fast_normalize(dir);
+                if(dir.x == 0 && dir.y == 0){
+                    dir = (float2)(1,0);
+                }
+                
+                bodyFieldW[id*3+1] = dir.x*1000.0;
+                bodyFieldW[id*3+2] = dir.y*1000.0;
+             }
+        }
+       // bodyFieldW[id*3+1] = lid*1000;
+    }
+}
+
+kernel void updateBodyFieldStep3(global int * bodyField, global int * forceField, const float force){
+    int x = get_global_id(0);// + get_global_offset(0);
+    int y = get_global_id(1);// + get_global_offset(1);
+    
+    int id = y * 1024 +  x;
+
+    float d = bodyField[id*3] / 50.0;
+    forceField[id*2] += bodyField[id*3+1]*force*d;
+    forceField[id*2+1] += bodyField[id*3+2]*force*d;
+}
+
+
+//######################################################
 //  Passive Kernels
 //######################################################
 
@@ -592,7 +807,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global u
 
 
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * passiveBuffer,  const float passiveMultiplier){
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * passiveBuffer,  const float passiveMultiplier, global int * bodyField){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -613,7 +828,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;// + bodyField[global_id*3+1]*1000.0;
     
     
     //--------
@@ -739,11 +954,16 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
 }
 
 
-kernel void resetCountCache(global unsigned  int * countInactiveBuffer,global unsigned  int * countActiveBuffer, global int * forceField){
-    countActiveBuffer[get_global_id(0)] = 0;
-    countInactiveBuffer[get_global_id(0)] = 0;
-    forceField[get_global_id(0)*2] = 0;
-    forceField[get_global_id(0)*2+1] = 0;
+kernel void resetCache(global unsigned  int * countInactiveBuffer,global unsigned  int * countActiveBuffer, global int * forceField, global int * bodyField){
+    
+    int id = get_global_id(0);
+    countActiveBuffer[id] = 0;
+    countInactiveBuffer[id] = 0;
+    forceField[id*2] = 0;
+    forceField[id*2+1] = 0;
+    bodyField[id*3] = 0;
+    bodyField[id*3+1] = 0;
+    bodyField[id*3+2] = 0;
 }
 
 

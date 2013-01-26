@@ -45,11 +45,16 @@
     cl_uint          *countPassiveBuffer_gpu;
     cl_uint          *countWakeUpBuffer_gpu;
     cl_uint          *countCreateParticleBuffer_gpu;
-    
+
+    cl_int          *bodyField_gpu[2];
+    cl_int          *bodyBlob_gpu;
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
     ParticleCounter *counter_gpu;
+    
+    
+    int * bodyBlobData;
     
     BOOL            firstLoop;
     
