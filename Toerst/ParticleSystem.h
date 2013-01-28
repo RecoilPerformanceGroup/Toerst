@@ -13,10 +13,11 @@
 #import "kernel.cl.h"
 #import "Shader.h"
 
-
+#define BodyDivider 4
+#define BodyType cl_short
+#define PassiveType cl_uint
 
 @interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate>{
-    GLuint				vbo;
     GLuint              texture[2];
     GLuint              forceTexture;
     GLuint              texture_blur;
@@ -42,11 +43,13 @@
     //cl_image      forceTexture_blur_gpu;
     cl_uint          *countActiveBuffer_gpu;
     cl_uint          *countInactiveBuffer_gpu;
-    cl_uint          *countPassiveBuffer_gpu;
-    cl_uint          *countWakeUpBuffer_gpu;
+    PassiveType          *countPassiveBuffer_gpu;
     cl_uint          *countCreateParticleBuffer_gpu;
 
-    cl_int          *bodyField_gpu[2];
+    //Deprecated
+    cl_uchar          *countWakeUpBuffer_gpu;
+
+    BodyType          *bodyField_gpu[2];
     cl_int          *bodyBlob_gpu;
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
@@ -76,6 +79,7 @@
     
     int frameNum;
     bool passiveWasActive;
+    int newDataJumper;
 }
 
 @property (readwrite) float clTime;

@@ -1,3 +1,9 @@
+
+#define BodyType short
+#define PassiveType uint
+#define BodyDivider 4
+
+
 typedef struct{
 	float2 vel;
 	float2 f;
@@ -8,14 +14,10 @@ typedef struct{
     bool dead;
     float alpha;
     bool inactive;
-   // float4 dummy;
+//    float2 dummy;
     
 } Particle;
 
-typedef struct {
-    float2 pos;
-    float4 color;
-} ParticleVBO;
 
 typedef struct {
     int activeParticles;
@@ -39,21 +41,6 @@ int getTexIndex(float2 pos, int textureWidth){
 
 
 bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
-    /*
-    int   i, j=polySides-1 ;
-    bool  oddNodes=false      ;
-    
-    for (i=0; i<polySides; i++) {
-        if (polyPoints[i*2+1]<point.y && polyPoints[j*2+1]>=point.y
-            ||  polyPoints[j*2+1]<point.y && polyPoints[i*2+1]>=point.y) {
-            if (polyPoints[i*2]+(point.y-polyPoints[i*2+1])/(polyPoints[j*2+1]-polyPoints[i*2+1])*(polyPoints[j*2]-polyPoints[i*2])<point.x) {
-                oddNodes=!oddNodes; }}
-        j=i; }
-    
-    return oddNodes;
-}*/
-
- 
     int   i, j=polySides-1 ;
     bool  oddNodes=false ;
     
@@ -61,8 +48,8 @@ bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
         int2 pi = (int2)(polyPoints[i*2],polyPoints[i*2+1]);
         int2 pj = (int2)(polyPoints[j*2],polyPoints[j*2+1]);
         
-        if ((pi.y< point.y && pj.y>= point.y
-             ||   pj.y< point.y && pi.y>= point.y)
+        if (((pi.y< point.y && pj.y>= point.y)
+             ||   (pj.y< point.y && pi.y>= point.y))
             &&  (pi.x<= point.x || pj.x<= point.x)) {
             oddNodes^=(pi.x+(point.y-pi.y)/(pj.y-pi.y)*(pj.x-pi.x)<point.x); }
         j=i; }
@@ -139,7 +126,6 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             isModified[byteNum] = true;
         }
     }*/
-    
     
     //-------  Position --------
     if(!isDead[li]){
@@ -424,7 +410,7 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
 }
 
 
-kernel void rectAdd(global unsigned int * passiveBuffer, const float4 rect, const float numAdd){
+kernel void rectAdd(global PassiveType * passiveBuffer, const float4 rect, const float numAdd){
     int bufferId = get_global_id(1)*get_global_size(0) + get_global_id(0);
     
     float x = get_global_id(0)/1024.0f;//get_global_size(0);
@@ -441,38 +427,55 @@ kernel void rectAdd(global unsigned int * passiveBuffer, const float4 rect, cons
 //------------------------------------------------------------------------------------------------------------
 
 
-kernel void sumParticleActivity(global Particle * particles, global unsigned int * countActiveBuffer, global unsigned int * countInactiveBuffer, const int textureWidth){
-    global Particle * p = &particles[get_global_id(0)];
-
-    int texIndex = getTexIndex(p->pos, textureWidth);
-    if(!p->dead && texIndex > 0 && texIndex < textureWidth*textureWidth){
-        if(p->inactive){
-            atomic_inc(&countInactiveBuffer[texIndex]);
-            
-        } else {
-            atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
-        }
-    }   
-
-}
-
-kernel void sumParticles(global Particle * particles, global unsigned  int * countActiveBuffer, global unsigned int* isDeadBuffer, global int * forceField, const int textureWidth, global ParticleCounter * counter, const float forceFieldParticleInfluence){
-
+kernel void sumParticleActivity(read_only global Particle * particles, write_only global unsigned int * countActiveBuffer, write_only global unsigned int * countInactiveBuffer, write_only const int textureWidth){
+    
     int id = get_global_id(0);
     
-    global Particle *p = &particles[id];
-    if(!p->dead && !p->inactive){
-        int texIndex  = getTexIndex(p->pos, textureWidth);
-        if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
-            if(forceFieldParticleInfluence > 0){
-                forceField[texIndex*2] += p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence;
-                forceField[texIndex*2+1] += p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence;
-//                atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
-  //              atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+    /*    private int inactive = 0;
+     private int active = 0;
+     /private unsigned int isDead = isDeadBuffer[id/32];
+     */
+    //   for(int i=0;i<32;i++){
+   // if(isDeadBuffer[id/32] & (1<<(id%32))  ){
+        
+        global Particle * p = &particles[id];
+        if(!p->dead){
+            int texIndex = getTexIndex(p->pos, textureWidth);
+            if(texIndex > 0 && texIndex < textureWidth*textureWidth){
+                if(p->inactive){
+                    atomic_inc(&countInactiveBuffer[texIndex]);
+                    
+                    //inactive ++;
+                } else {
+                    //active += 1000.0*p->alpha;
+                    atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
+                    
+                }
+            }
+        }
+   // }
+    //  }
+    
+    
+}
+
+kernel void sumParticleForces(global Particle * particles, global int * forceField, const int textureWidth, const float forceFieldParticleInfluence){
+    
+    int id = get_global_id(0);
+    
+    if(forceFieldParticleInfluence > 0){
+        global Particle *p = &particles[id];
+        if(!p->dead && !p->inactive){
+            int texIndex  = getTexIndex(p->pos, textureWidth);
+            if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
+                //    forceField[texIndex*2] += p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence;
+                //                forceField[texIndex*2+1] += p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence;
+                atomic_add(&forceField[texIndex*2], p->vel.x*FORCE_CACHE_MULT*forceFieldParticleInfluence);
+                atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
             }
         }
     }
-
+    
     
     
 }
@@ -527,9 +530,9 @@ kernel void sumCounter(global Particle * particles, global unsigned int* isDeadB
      } else {
      atomic_inc(&counter[0].activeParticles);
      }
-   /* if(isDeadBuffer[id/32] & (1<<(id%32))  ){
+    if(isDeadBuffer[id/32] & (1<<(id%32))  ){
         atomic_inc(&counter[0].deadParticlesBit);
-    }*/
+    }
     /* if(id%32 == 0){
      atomic_add(&counter[0].deadParticlesBit, popcount(as_int(isDeadBuffer[id/32])));
      
@@ -567,12 +570,12 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
 //  Body Kernels
 //######################################################
 
-kernel void updateBodyFieldStep1(global int * bodyField, global int * bodyBlob, const int numBlobPoints){
+kernel void updateBodyFieldStep1(global BodyType * bodyField, global int * bodyBlob, const int numBlobPoints){
 
-    int x = get_global_id(0);// + get_global_offset(0);
-    int y = get_global_id(1);// + get_global_offset(1);
+    int x = get_global_id(0)*BodyDivider;
+    int y = get_global_id(1)*BodyDivider;
     
-    int id = y * 1024 +  x;
+    int id = get_global_id(1) * 1024/BodyDivider +  get_global_id(0);
  
     if(pointInPolygon(numBlobPoints, bodyBlob, (int2)(x,y))){
         bodyField[id*3] = -1;
@@ -591,11 +594,11 @@ kernel void updateBodyFieldStep1(global int * bodyField, global int * bodyBlob, 
     //   bodyField[id*3] = 100;
 }
 
-kernel void updateBodyFieldStep2(global int * bodyFieldR, global int * bodyFieldW, const int step, local int * bodyFieldCache){
-    int x = get_global_id(0);// + get_global_offset(0);
-    int y = get_global_id(1);// + get_global_offset(1);
+kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_only global BodyType * bodyFieldW, const int step, local int * bodyFieldCache){
+    int x = get_global_id(0)*BodyDivider;
+    int y = get_global_id(1)*BodyDivider;
     
-    int id = y * 1024 +  x;
+    int id = get_global_id(1) * 1024/BodyDivider +  get_global_id(0);
     int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
     
     
@@ -734,15 +737,16 @@ kernel void updateBodyFieldStep2(global int * bodyFieldR, global int * bodyField
     }
 }
 
-kernel void updateBodyFieldStep3(global int * bodyField, global int * forceField, const float force){
+kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * forceField, const float force){
     int x = get_global_id(0);// + get_global_offset(0);
     int y = get_global_id(1);// + get_global_offset(1);
     
-    int id = y * 1024 +  x;
+    int id =  get_global_id(1) * 1024 +   get_global_id(0);
+    int idBody =  get_global_id(1)/BodyDivider * (1024/BodyDivider) +   get_global_id(0)/BodyDivider;
 
-    float d = bodyField[id*3] / 50.0;
-    forceField[id*2] += bodyField[id*3+1]*force*d;
-    forceField[id*2+1] += bodyField[id*3+2]*force*d;
+    float d = bodyField[idBody*3] / 50.0;
+    forceField[id*2] += bodyField[idBody*3+1]*force*d;
+    forceField[id*2+1] += bodyField[idBody*3+2]*force*d;
 }
 
 
@@ -750,7 +754,7 @@ kernel void updateBodyFieldStep3(global int * bodyField, global int * forceField
 //  Passive Kernels
 //######################################################
 
-kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier){
+kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier){
 
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     int force = forceField[id*2] + forceField[id*2+1];
@@ -783,7 +787,7 @@ kernel void passiveParticlesBufferUpdate(global unsigned int * passiveBuffer, gl
 }
 
 
-kernel void activateAllPassiveParticles(global unsigned int * passiveBuffer,  global unsigned int * countCreateBuffer, const float passiveMultiplier ){
+kernel void activateAllPassiveParticles(global PassiveType * passiveBuffer,  global unsigned int * countCreateBuffer, const float passiveMultiplier ){
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     
     
@@ -793,8 +797,8 @@ kernel void activateAllPassiveParticles(global unsigned int * passiveBuffer,  gl
 }
 
 
-kernel void passiveParticlesParticleUpdate(global Particle * particles, global unsigned int * passiveBuffer, global unsigned int * wakeUpBuffer, const int textureWidth, local int * wakeUpCache, global unsigned int *isDeadBuffer){
-    
+kernel void passiveParticlesParticleUpdate(global Particle * particles, global PassiveType * passiveBuffer, const int textureWidth, global unsigned int *isDeadBuffer){
+   
     int i = get_global_id(0);
     int lid = get_local_id(0);
     int local_size = get_local_size(0);
@@ -807,7 +811,8 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global u
     if(!isDead[lid]){
         if(particles[i].inactive){
 
-            int texIndex = getTexIndex(particles[i].pos, textureWidth);
+            private int texIndex = getTexIndex(particles[i].pos, textureWidth);
+            
             if(texIndex >= 0 && texIndex < textureWidth*textureWidth){
                 if(passiveBuffer[texIndex] > 0){
                     particles[i].dead = true;
@@ -835,7 +840,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global u
 
 
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global unsigned  int * passiveBuffer,  const float passiveMultiplier, global int * bodyField){
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global PassiveType * passiveBuffer,  const float passiveMultiplier){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -982,21 +987,24 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
 }
 
 
-kernel void resetCache(global unsigned  int * countInactiveBuffer,global unsigned  int * countActiveBuffer, global int * forceField, global int * bodyField){
+kernel void resetCache(global unsigned  int * countInactiveBuffer,global unsigned  int * countActiveBuffer, global int * forceField, global BodyType * bodyField){
     
     int id = get_global_id(0);
     countActiveBuffer[id] = 0;
     countInactiveBuffer[id] = 0;
     forceField[id*2] = 0;
     forceField[id*2+1] = 0;
-    bodyField[id*3] = 0;
-    bodyField[id*3+1] = 0;
-    bodyField[id*3+2] = 0;
+
+    if(id < get_global_size(0)/(BodyDivider*BodyDivider)){
+        bodyField[id*3] = 0;
+        bodyField[id*3+1] = 0;
+        bodyField[id*3+2] = 0;
+    }
 }
 
 
 
-__kernel void gaussianBlurBuffer(global unsigned int * buffer, constant float * mask, private int maskSize, const float ammount, const float fadeAmmount){
+__kernel void gaussianBlurBuffer(global PassiveType * buffer, constant float * mask, private int maskSize, const float ammount, const float fadeAmmount){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int width = get_global_size(0);

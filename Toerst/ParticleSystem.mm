@@ -12,9 +12,9 @@
 #define TEXTURE_RES (1024)
 
 //#define NUM_PARTICLES (1024*64)
-//#define NUM_PARTICLES (1024*1024*3)
+//#define NUM_PARTICLES (1024*10+24*3)
 #define NUM_PARTICLES_SQ 1200
-#define NUM_PARTICLES (1024*2048)
+#define NUM_PARTICLES (1024*1024)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 #define NUM_BLOB_POINTS 300
 
@@ -59,6 +59,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
 -(void)initPlugin{
     firstLoop = YES;
+    [self addPropB:@"_debug"];
     [self addPropB:@"passiveParticles"];
     [[self addPropF:@"passiveMultiplier"] setMinValue:0.01 maxValue:1.0];
     [[self addPropF:@"passiveBlur"] setMaxValue:0.1];
@@ -166,14 +167,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     
     //VBO
-    glGenBuffers(1, &vbo);
+/*    glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_DYNAMIC_COPY);
     // glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STATIC_DRAW);
     //	glBufferData(GL_ARRAY_BUFFER, sizeof(ParticleVBO) * NUM_PARTICLES, particlesVboData, GL_STREAM_DRAW);
     
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
+    */
     
     float * textureData = (float*) malloc(sizeof(float)*TEXTURE_RES*TEXTURE_RES*3);
     memset(textureData, 1.0, TEXTURE_RES*TEXTURE_RES*3*sizeof(float));
@@ -248,12 +249,15 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     countInactiveBuffer_gpu  = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countActiveBuffer_gpu   = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
-    countPassiveBuffer_gpu  = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countPassiveBuffer_gpu  = (PassiveType*) gcl_malloc(sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
     bodyBlob_gpu           = (cl_int*) gcl_malloc(sizeof(cl_int)*NUM_BLOB_POINTS*2,  nil, CL_MEM_READ_ONLY );
-    bodyField_gpu[0]           = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
-    bodyField_gpu[1]           = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
+    
+    for(int i=0;i<2;i++){
+        bodyField_gpu[i]           = (BodyType*) gcl_malloc(sizeof(BodyType)*(TEXTURE_RES/BodyDivider)*(TEXTURE_RES/BodyDivider)*3,  nil, CL_MEM_READ_WRITE );
+    }
+    //    bodyField_gpu[1]           = (BodyType*) gcl_malloc(sizeof(BodyType)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
     
     forceField_gpu          = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     forceCacheBlur_gpu      = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
@@ -332,7 +336,7 @@ static dispatch_once_t onceToken;
         
         dispatch_async(queue,
                        ^{
-                           gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+                           gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
                            delete pixelsDst;
                        });
         
@@ -399,14 +403,20 @@ static dispatch_once_t onceToken;
                           1,
                           {0, 0, 0},
                           {NUM_PARTICLES_FRAC, 0, 0},
-                          {1024}
+                          {0}
                       };
-                      
+                 /*     cl_ndrange ndrange32 = {
+                          1,
+                          {0, 0, 0},
+                          {NUM_PARTICLES_FRAC/32, 0, 0},
+                          {0}
+                      };
+                      */
                       cl_ndrange ndrangeTex = {
                           2,
                           {0, 0, 0},
                           {TEXTURE_RES, TEXTURE_RES},
-                          {32,32,0}
+                          {0}
                       };
                       cl_ndrange ndrangeTexAdd = {
                           1,
@@ -426,7 +436,7 @@ static dispatch_once_t onceToken;
                       //------------------
                       int minX, maxX, minY, maxY;
                       minX = maxX = minY = maxY = -1;
-                      
+                   
                       if(trackerPoints.size()> 0){
                           cl_timer bodyTimer = gcl_start_timer();
                           
@@ -445,14 +455,14 @@ static dispatch_once_t onceToken;
                                   maxY = trackerPoints[i].y;
                           }
                           
-                          minX = floor(minX / 64.0f)*64.0;
-                          minY = floor(minY / 64.0f)*64.0;
+                          minX = floor(minX / 64.0f)*64.0/BodyDivider;
+                          minY = floor(minY / 64.0f)*64.0/BodyDivider;
                           
-                          maxX = ceil(maxX / 64.0f)*64.0;
-                          maxY = ceil(maxY / 64.0f)*64.0;
+                          maxX = ceil(maxX / 64.0f)*64.0/BodyDivider;
+                          maxY = ceil(maxY / 64.0f)*64.0/BodyDivider;
                           
                           
-                          //NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+                        //  NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
                           cl_ndrange ndrangeBody = {
                               2,
                               {minX, minY, 0},
@@ -460,19 +470,26 @@ static dispatch_once_t onceToken;
                               {0}
                           };
                           
+                          cl_ndrange ndrangeBody2 = {
+                              2,
+                              {minX*BodyDivider, minY*BodyDivider, 0},
+                              {(maxX-minX)*BodyDivider, (maxY-minY)*BodyDivider},
+                              {0}
+                          };
+                          
                           
                           //   NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
                           
-                          
+                         
                           gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*trackerPoints.size()*2);
                           
                           updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, trackerPoints.size());
-                          
+                        
                           // NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
-                          
-                          
+                        
+                        
                           bool flip = false;
                           for(int i=0;i<40;i++){
                               updateBodyFieldStep2_kernel(&ndrangeBody, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
@@ -482,11 +499,11 @@ static dispatch_once_t onceToken;
                           bodyTimer = gcl_start_timer();
                           
                           
-                          updateBodyFieldStep3_kernel(&ndrangeBody, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
+                          updateBodyFieldStep3_kernel(&ndrangeBody2, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
                           
                           //   NSLog(@"Step 3 %f",gcl_stop_timer(bodyTimer));
-                          bodyTimer = gcl_start_timer();
-                          
+                          //bodyTimer = gcl_start_timer();
+                        
                           
                       }
                       
@@ -509,9 +526,9 @@ static dispatch_once_t onceToken;
                           cl_float2 mousePos;
                           mousePos.s[0] = trackers[i].y;
                           mousePos.s[1] = 1-trackers[i].x;
-                          /*if(mouseForce){
-                           mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
-                           }*/
+                          if(mouseForce){
+//                           mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
+                           }
                           
                           if(mouseAdd){
                               mouseAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, mousePos, mouseRadius, mouseAdd);
@@ -545,7 +562,7 @@ static dispatch_once_t onceToken;
                           wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
                           
                       }
-                      whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
+                   //   whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
                       double windTime = gcl_stop_timer(windTimer);
                       //####################################
                       
@@ -558,11 +575,11 @@ static dispatch_once_t onceToken;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                      
+                     
                       if(PropB(@"passiveParticles")){
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
                           
-                          passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu,countWakeUpBuffer_gpu, TEXTURE_RES, 1024*sizeof(cl_int), isDead_gpu);
+                          passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu, TEXTURE_RES, isDead_gpu);
                           passiveWasActive = true;
                       } else if(passiveWasActive){
                           passiveWasActive = false;
@@ -587,7 +604,7 @@ static dispatch_once_t onceToken;
                       //############### SUM ###############
                       cl_timer sumTimer = gcl_start_timer();
                       
-                      sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
+                      sumParticleForces_kernel(&ndrange, particle_gpu, forceField_gpu,  TEXTURE_RES,forceFieldParticleInfluence);
                       
                       //DEBUG
                       //sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
@@ -638,7 +655,7 @@ static dispatch_once_t onceToken;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") , bodyField_gpu[0]);
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier"));
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
@@ -687,7 +704,9 @@ static dispatch_once_t onceToken;
                       //    gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
                       //      NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
                       
-                      if(!firstLoop){
+                      if(PropB(@"_debug")){
+                          newDataJumper ++;
+                      if(!firstLoop && newDataJumper %5 == 0){
                           dispatch_async(dispatch_get_main_queue(), ^{
                               NSDictionary * dict = @{
                               totalIdentifier : @(totalTime),
@@ -704,7 +723,7 @@ static dispatch_once_t onceToken;
                               [self newData:dict];
                           });
                           
-                          
+                      }
                       }
                       
                       
