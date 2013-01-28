@@ -351,14 +351,14 @@ static dispatch_once_t onceToken;
     });
     
     vector<ofVec2f> trackerPoints;
-    
+    /*
     if(trackers.size()> 0){
         for(int i=0;i<50;i++){
             float a = i/(float)50;
             ofVec2f p = ofVec2f(sin(a*TWO_PI), cos(a*TWO_PI))*20* (sin(a*TWO_PI*4)+3) + 1024*ofVec2f(trackers[0].y,1-trackers[0].x);
             trackerPoints.push_back(p);
         }
-    }
+    }*/
     
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
@@ -424,7 +424,7 @@ static dispatch_once_t onceToken;
                       //------------------
                       //BODY
                       //------------------
-                      int minX, maxX, minY, maxY;
+                    /*  int minX, maxX, minY, maxY;
                       minX = maxX = minY = maxY = -1;
                       
                       if(trackerPoints.size()> 0){
@@ -488,7 +488,7 @@ static dispatch_once_t onceToken;
                           bodyTimer = gcl_start_timer();
                           
                           
-                      }
+                      }*/
                       
                       //------------------
                       // Forces
@@ -545,7 +545,9 @@ static dispatch_once_t onceToken;
                           wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
                           
                       }
-                      whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
+                      if( PropF(@"whirlAmount")){
+                          whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
+                      }
                       double windTime = gcl_stop_timer(windTimer);
                       //####################################
                       
@@ -558,7 +560,7 @@ static dispatch_once_t onceToken;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                      
+                   /*
                       if(PropB(@"passiveParticles")){
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
                           
@@ -569,6 +571,7 @@ static dispatch_once_t onceToken;
                           activateAllPassiveParticles_kernel(&ndrangeTex, countPassiveBuffer_gpu, countCreateParticleBuffer_gpu, PropF(@"passiveMultiplier"));
                       }
                       
+                */
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
                       
@@ -576,9 +579,9 @@ static dispatch_once_t onceToken;
                       //############# ADD #############
                       cl_timer addTimer = gcl_start_timer();
                       
-                      for(int i=0;i<5;i++){
+                  /*    for(int i=0;i<5;i++){
                           addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum+=10, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
-                      }
+                      }*/
                       double addTime = gcl_stop_timer(addTimer);
                       //###################################
                       
@@ -587,7 +590,7 @@ static dispatch_once_t onceToken;
                       //############### SUM ###############
                       cl_timer sumTimer = gcl_start_timer();
                       
-                      sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
+                     // sumParticles_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, isDead_gpu, forceField_gpu,  TEXTURE_RES, counter_gpu,forceFieldParticleInfluence);
                       
                       //DEBUG
                       //sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
@@ -609,7 +612,7 @@ static dispatch_once_t onceToken;
                           /* if(forceTextureBlur){
                            forceTextureForce_kernel(&ndrange, particle_gpu, pos_gpu, forceCacheBlur_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES);
                            } else*/ {
-                               forceTextureForce_kernel(&ndrange, particle_gpu, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES/*, sizeof(cl_int2)*1024*5*/ );
+                       //        forceTextureForce_kernel(&ndrange, particle_gpu, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce, TEXTURE_RES/*, sizeof(cl_int2)*1024*5*/ );
                                
                            }
                       }
@@ -623,7 +626,7 @@ static dispatch_once_t onceToken;
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
                       
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                     // update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
                       
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
@@ -638,7 +641,7 @@ static dispatch_once_t onceToken;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") , bodyField_gpu[0]);
+                 //     updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier") , bodyField_gpu[0]);
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
@@ -652,12 +655,12 @@ static dispatch_once_t onceToken;
                       
                       
                       if(drawForceTexture){
-                          updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceField_gpu);
+                      //    updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceField_gpu);
                       }
                       
                       
                       if(PropF(@"passiveBlur")){
-                          gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
+                //          gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
                       }
                       
                       
@@ -667,7 +670,7 @@ static dispatch_once_t onceToken;
                           {TEXTURE_RES*TEXTURE_RES},
                           {0}
                       };
-                      resetCache_kernel(&ndrangeReset, countInactiveBuffer_gpu, countActiveBuffer_gpu, forceField_gpu,bodyField_gpu[0]);
+                     // resetCache_kernel(&ndrangeReset, countInactiveBuffer_gpu, countActiveBuffer_gpu, forceField_gpu,bodyField_gpu[0]);
                       
                       
                       

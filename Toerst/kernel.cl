@@ -446,12 +446,12 @@ kernel void sumParticleActivity(global Particle * particles, global unsigned int
 
     int texIndex = getTexIndex(p->pos, textureWidth);
     if(!p->dead && texIndex > 0 && texIndex < textureWidth*textureWidth){
-        if(p->inactive){
+        /*if(p->inactive){
             atomic_inc(&countInactiveBuffer[texIndex]);
             
         } else {
             atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
-        }
+        }*/
     }   
 
 }

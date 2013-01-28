@@ -22,7 +22,10 @@
     [ocp addPlugin:[[Midi alloc] init]];
     [ocp addPlugin:[[Keystoner alloc] initWithSurfaces:[NSArray arrayWithObjects:@"Floor", nil]] midiChannel:2 ];
     [ocp addPlugin:[[OSCControl alloc] init]];
-    //[ocp addPlugin:[[Tracker alloc] init]];
+/*    [ocp addPlugin:[[Cameras alloc ] initWithNumberCameras:1]];
+    [ocp addPlugin:[[CameraCalibration alloc] init]];
+    [ocp addPlugin:[[BlobTracker2d alloc] init]];
+    [ocp addPlugin:[[Tracker alloc] init]];*/
     [ocp addPlugin:[[ParticleSystem alloc] init]];
     
     [ocp loadPlugins];
