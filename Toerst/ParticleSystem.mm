@@ -8,12 +8,12 @@
 
 #import "ParticleSystem.h"
 #import <ofxCocoaPlugins/Keystoner.h>
+#import <ofxCocoaPlugins/BlobTracker2d.h>
 
 #define TEXTURE_RES (1024)
 
 //#define NUM_PARTICLES (1024*64)
 //#define NUM_PARTICLES (1024*10+24*3)
-#define NUM_PARTICLES_SQ 1200
 #define NUM_PARTICLES (1024*1024)
 #define NUM_PARTICLES_FRAC  MAX(1024, (NUM_PARTICLES * (  floor(PropF(@"generalUpdateFraction") * 1024)/1024.0)))
 #define NUM_BLOB_POINTS 300
@@ -115,6 +115,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"whirlGravity"] setMinValue:0 maxValue:1];
     [[self addPropF:@"stickyAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"stickyGain"] setMinValue:0 maxValue:1];
+    
+    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:1];
     
 }
 
@@ -266,6 +268,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     forceField_gpu          = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
     forceCacheBlur_gpu      = (cl_int*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES*2,  nil, CL_MEM_READ_WRITE );
+    
+    
+    opticalFlow_gpu         = (cl_int*) gcl_malloc(sizeof(cl_int)*(OpticalFlowSize)*(OpticalFlowSize)*2,  nil, CL_MEM_READ_ONLY );
+    
     counter_gpu             = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(0.5f, &maskSize);
@@ -347,6 +353,32 @@ int curr_read_index, curr_write_index;
 
 static dispatch_once_t onceToken;
 -(void)draw:(NSDictionary *)drawingInformation{
+    
+    CachePropF(mouseForce);
+    CachePropF(mouseRadius);
+    CachePropF(mouseAdd);
+    
+    CachePropF(rectAdd);
+    CachePropF(rectAddX);
+    CachePropF(rectAddY);
+    CachePropF(rectAddWidth);
+    CachePropF(rectAddHeight);
+    
+    CachePropF(particleDamp);
+    CachePropF(generalDt);
+    CachePropF(particleMinSpeed);
+    CachePropF(particleFadeOutSpeed);
+    CachePropF(particleFadeInSpeed);
+    
+    CachePropF(densityForce);
+    
+    CachePropF(forceTextureForce);
+    CachePropF(forceFieldParticleInfluence);
+    
+    CachePropF(forceTextureMaxForce);
+    CachePropB(drawForceTexture);
+    CachePropF(opticalFlow);
+    
     if(PropB(@"loadImage")){
         SetPropB(@"loadImage",false);
         
@@ -375,6 +407,7 @@ static dispatch_once_t onceToken;
     
     dispatch_once(&onceToken, ^{
         bodyBlobData = (int*)malloc(sizeof(int)*NUM_BLOB_POINTS*2);
+        opticalFlowData = (int*)malloc(sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
     });
     
     vector<ofVec2f> trackerPoints;
@@ -392,30 +425,31 @@ static dispatch_once_t onceToken;
             trackerPoints.push_back(p);
         }
     }
+
     
-    CachePropF(mouseForce);
-    CachePropF(mouseRadius);
-    CachePropF(mouseAdd);
+    if(opticalFlow){
+        BlobTrackerInstance2d * trackerInstance = [GetPlugin(BlobTracker2d) getInstance:0];
+        NSLog(@"Sizeeeee   %i %i",[trackerInstance opticalFlowW], [trackerInstance opticalFlowH]);
+        
+        if([trackerInstance opticalFlowW] == OpticalFlowSize && [trackerInstance opticalFlowH] == OpticalFlowSize){
+            
+            ofVec2f * _opticalFlowData = [trackerInstance opticalFlowFieldCalibrated];
+             for(int i=0;i<OpticalFlowSize*OpticalFlowSize;i++){
+                opticalFlowData[i*2] = _opticalFlowData[i].x;
+                opticalFlowData[i*2+1] = _opticalFlowData[i].y;
+            }
+            
+           dispatch_sync(queue,
+                           ^{
+                               gcl_memcpy(opticalFlow_gpu, opticalFlowData, sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
+                           });
+        }
+        
+        //[ opticalFlowFieldCalibrated]->
+    }
     
-    CachePropF(rectAdd);
-    CachePropF(rectAddX);
-    CachePropF(rectAddY);
-    CachePropF(rectAddWidth);
-    CachePropF(rectAddHeight);
     
-    CachePropF(particleDamp);
-    CachePropF(generalDt);
-    CachePropF(particleMinSpeed);
-    CachePropF(particleFadeOutSpeed);
-    CachePropF(particleFadeInSpeed);
-    
-    CachePropF(densityForce);
-    
-    CachePropF(forceTextureForce);
-    CachePropF(forceFieldParticleInfluence);
-    
-    CachePropF(forceTextureMaxForce);
-    CachePropB(drawForceTexture);
+
     
     dispatch_sync(queue,
                   ^{
@@ -573,6 +607,17 @@ static dispatch_once_t onceToken;
                           rectAdd_kernel(&ndrangeTex, countPassiveBuffer_gpu, rect, rectAdd);
                           //rectAdd_kernel(&ndrangeAdd, particle_gpu, rect, roundf(rectAdd), NUM_PARTICLES_FRAC, ofRandom(0,1), ofRandom(0,1));
                           
+                      }
+                      
+                      if(opticalFlow){
+                          cl_ndrange ndrangeOptical = {
+                              2,
+                              {0,0, 0},
+                              {50-1,50-1},
+                              {0}
+                          };
+                          
+                          opticalFlow_kernel(&ndrangeOptical, opticalFlow_gpu, forceField_gpu, 20, opticalFlow);
                       }
                       
                       
@@ -751,7 +796,7 @@ static dispatch_once_t onceToken;
                               inactiveIdentifier : @(0.1*counter->inactiveParticles/(float)NUM_PARTICLES_FRAC),
                               deadIdentifier : @(0.1*counter->deadParticles/(float)NUM_PARTICLES_FRAC)
                               };
-                              [self newData:dict];
+                            //  [self newData:dict];
                           });
                           
                       }

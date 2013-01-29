@@ -403,9 +403,37 @@ kernel void whirl(global int * forceField, const float amount, const float radiu
         forceField[id*2] += hat.x*1.0 + dir.x*gravity;
         forceField[id*2+1] += hat.y*1.0 + dir.y*gravity;
     }
+}
+
+
+kernel void opticalFlow(read_only global int * opticalFlow, global int * forceField, const int w, const float amount){
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    
+    int id = y * 50 + x;
+    
+    float2 a = (float2)(opticalFlow[id*2]*amount, opticalFlow[id*2+1]*amount);
+    float2 b = (float2)(opticalFlow[(id+1)*2]*amount, opticalFlow[(id+1)*2+1]*amount);
+    float2 c = (float2)(opticalFlow[(id+51)*2]*amount, opticalFlow[(id+51)*2+1]*amount);
+    float2 d = (float2)(opticalFlow[(id+50)*2]*amount, opticalFlow[(id+50)*2+1]*amount);
     
     
-    
+    for(int i=0;i<w;i++){
+        float ia = (float)i/w;
+
+        for(int j=0;j<w;j++){
+            float ja = (float)j/w;
+            
+            float2 _t = a*(1-ja) + b*ja;
+            float2 _b = d*(1-ja) + c*ja;
+            
+            float2 r = _b * ia + _t * (1-ia);
+            
+            int fid = (i+y*w) * 1024 + (j+x*w);
+            forceField[fid*2] += r.x;
+            forceField[fid*2+1] += r.y;
+        }
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------

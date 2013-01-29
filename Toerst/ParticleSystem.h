@@ -16,6 +16,7 @@
 #define BodyDivider 4
 #define BodyType cl_short
 #define PassiveType cl_uint
+#define OpticalFlowSize 50
 
 @interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate>{
     GLuint              texture[2];
@@ -38,25 +39,28 @@
     cl_uint          *isDead_gpu;
     Particle        *particle_gpu;
     cl_image        texture_gpu[2];
-    cl_image      texture_blur_gpu;
+    cl_image        texture_blur_gpu;
     cl_image        forceTexture_gpu;
     //cl_image      forceTexture_blur_gpu;
-    cl_uint          *countActiveBuffer_gpu;
-    cl_uint          *countInactiveBuffer_gpu;
-    PassiveType          *countPassiveBuffer_gpu;
-    cl_uint          *countCreateParticleBuffer_gpu;
+    cl_uint         *countActiveBuffer_gpu;
+    cl_uint         *countInactiveBuffer_gpu;
+    PassiveType     *countPassiveBuffer_gpu;
+    cl_uint         *countCreateParticleBuffer_gpu;
 
-    BodyType          *bodyField_gpu[2];
+    BodyType        *bodyField_gpu[2];
     cl_int          *bodyBlob_gpu;
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
     
     cl_uchar        *stickyBuffer_gpu;
+    cl_int          *opticalFlow_gpu;
+
     ParticleCounter *counter_gpu;
     
     
     int * bodyBlobData;
+    int * opticalFlowData;
     
     BOOL            firstLoop;
     
