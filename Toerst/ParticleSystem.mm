@@ -141,6 +141,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         p.dead = YES;
         p.inactive = NO;
         p.alpha = 0.0;
+        p.layer = 0;
         
         //	particlesPos[i] = ofVec2f(ofRandom(1), ofRandom(1));
         /*        particlesVboData[i].pos.s[0] = -1;
@@ -562,7 +563,9 @@ static dispatch_once_t onceToken;
                           wind_kernel(&ndrangeTex, forceField_gpu, *((cl_float2*)globalWind), *((cl_float3*)pointWind));
                           
                       }
-                   //   whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
+                      if(PropF(@"whirlAmount")){
+                          whirl_kernel(&ndrangeTex, forceField_gpu, PropF(@"whirlAmount"), PropF(@"whirlRadius")*1024, PropF(@"whirlX")*1024, PropF(@"whirlY")*1024, PropF(@"whirlGravity"));
+                      }
                       double windTime = gcl_stop_timer(windTimer);
                       //####################################
                       

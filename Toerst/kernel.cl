@@ -14,6 +14,7 @@ typedef struct{
     bool dead;
     float alpha;
     bool inactive;
+    int layer;
 //    float2 dummy;
     
 } Particle;
@@ -135,7 +136,11 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         
         p->vel *= damp;
         
-        p->vel += p->f * p->mass;
+        float layer = convert_float(2-p->layer)/2.0f;
+        if(layer < 0){
+            layer = 0;
+        }
+        p->vel += p->f * p->mass * layer;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
@@ -436,24 +441,24 @@ kernel void sumParticleActivity(read_only global Particle * particles, write_onl
      /private unsigned int isDead = isDeadBuffer[id/32];
      */
     //   for(int i=0;i<32;i++){
-   // if(isDeadBuffer[id/32] & (1<<(id%32))  ){
-        
-        global Particle * p = &particles[id];
-        if(!p->dead){
-            int texIndex = getTexIndex(p->pos, textureWidth);
-            if(texIndex > 0 && texIndex < textureWidth*textureWidth){
-                if(p->inactive){
-                    atomic_inc(&countInactiveBuffer[texIndex]);
-                    
-                    //inactive ++;
-                } else {
-                    //active += 1000.0*p->alpha;
-                    atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
-                    
-                }
+    // if(isDeadBuffer[id/32] & (1<<(id%32))  ){
+    
+    global Particle * p = &particles[id];
+    if(!p->dead){
+        int texIndex = getTexIndex(p->pos, textureWidth);
+        if(texIndex > 0 && texIndex < textureWidth*textureWidth){
+            if(p->inactive){
+                p->layer = atomic_inc(&countInactiveBuffer[texIndex]);
+                
+                //inactive ++;
+            } else {
+                //active += 1000.0*p->alpha;
+                p->layer = atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha)/1000.0;
+                
             }
         }
-   // }
+    }
+    // }
     //  }
     
     
@@ -738,15 +743,18 @@ kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_o
 }
 
 kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * forceField, const float force){
-    int x = get_global_id(0);// + get_global_offset(0);
-    int y = get_global_id(1);// + get_global_offset(1);
+    int x = get_global_id(0);
+    int y = get_global_id(1);
     
-    int id =  get_global_id(1) * 1024 +   get_global_id(0);
-    int idBody =  get_global_id(1)/BodyDivider * (1024/BodyDivider) +   get_global_id(0)/BodyDivider;
-
-    float d = bodyField[idBody*3] / 50.0;
-    forceField[id*2] += bodyField[idBody*3+1]*force*d;
-    forceField[id*2+1] += bodyField[idBody*3+2]*force*d;
+    int id =  y * 1024 +  x;
+    int idBody =  y/BodyDivider * (1024/BodyDivider) +   x/BodyDivider;
+    
+    float d = bodyField[idBody*3];
+    if(d > 0){
+        d /= 50.0;
+        forceField[id*2] += bodyField[idBody*3+1]*force*d;
+        forceField[id*2+1] += bodyField[idBody*3+2]*force*d;
+    }
 }
 
 
