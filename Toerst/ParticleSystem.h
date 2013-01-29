@@ -51,6 +51,8 @@
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;
     cl_float        *mask_gpu;
+    
+    cl_uchar        *stickyBuffer_gpu;
     ParticleCounter *counter_gpu;
     
     

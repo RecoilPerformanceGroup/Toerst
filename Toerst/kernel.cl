@@ -101,7 +101,7 @@ bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const floa
 // Update the particles position 
 //
 
-kernel void update(global Particle* particles, global unsigned int * isDeadBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed)
+kernel void update(global Particle* particles, global unsigned int * isDeadBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, read_only global uchar * stickyBuffer, const float stickyAmount, const float stickyGain)
 {
     size_t i = get_global_id(0);
     size_t li = get_local_id(0);
@@ -131,7 +131,8 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
     //-------  Position --------
     if(!isDead[li]){
         __global Particle *p = &particles[i];
-
+        int texIndex =  getTexIndex(p->pos, textureWidth);
+        
         p->age ++;
         
         p->vel *= damp;
@@ -140,7 +141,20 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         if(layer < 0){
             layer = 0;
         }
-        p->vel += p->f * p->mass * layer;
+  
+        float sticky = (float)stickyBuffer[texIndex];
+        sticky /= 256.0f;
+//        sticky = stickyAmount * sticky + (1-stickyAmount);
+        
+        if(p->layer < sticky * stickyGain*10.0f){
+            sticky = stickyAmount;
+        } else {
+            sticky = 1;
+        }
+//        float sticky = convert_float(stickyBuffer[texIndex])/256.0f;
+        
+        p->vel += p->f * p->mass *  sticky;
+//        p->vel += p->f * p->mass * layer * sticky;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){

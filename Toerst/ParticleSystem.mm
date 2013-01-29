@@ -113,6 +113,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"whirlX"] setMinValue:0 maxValue:1];
     [[self addPropF:@"whirlY"] setMinValue:0 maxValue:1];
     [[self addPropF:@"whirlGravity"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"stickyAmount"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"stickyGain"] setMinValue:0 maxValue:1];
     
 }
 
@@ -248,15 +250,17 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     isDead_gpu              = (cl_uint*)gcl_malloc(sizeof(cl_uint)*NUM_PARTICLES/32, isDead, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     
-    countInactiveBuffer_gpu  = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    countInactiveBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countActiveBuffer_gpu   = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countPassiveBuffer_gpu  = (PassiveType*) gcl_malloc(sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
-    bodyBlob_gpu           = (cl_int*) gcl_malloc(sizeof(cl_int)*NUM_BLOB_POINTS*2,  nil, CL_MEM_READ_ONLY );
+    stickyBuffer_gpu        = (cl_uchar*) gcl_malloc(sizeof(cl_uchar)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    
+    bodyBlob_gpu            = (cl_int*) gcl_malloc(sizeof(cl_int)*NUM_BLOB_POINTS*2,  nil, CL_MEM_READ_ONLY );
     
     for(int i=0;i<2;i++){
-        bodyField_gpu[i]           = (BodyType*) gcl_malloc(sizeof(BodyType)*(TEXTURE_RES/BodyDivider)*(TEXTURE_RES/BodyDivider)*3,  nil, CL_MEM_READ_WRITE );
+        bodyField_gpu[i]    = (BodyType*) gcl_malloc(sizeof(BodyType)*(TEXTURE_RES/BodyDivider)*(TEXTURE_RES/BodyDivider)*3,  nil, CL_MEM_READ_WRITE );
     }
     //    bodyField_gpu[1]           = (BodyType*) gcl_malloc(sizeof(BodyType)*TEXTURE_RES*TEXTURE_RES*3,  nil, CL_MEM_READ_WRITE );
     
@@ -306,6 +310,31 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         glUseProgramObjectARB(NULL);
         
     }
+    
+    
+    
+    
+    {
+        ofImage image;
+        image.setUseTexture(false);
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/sticky.png");
+        NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
+        
+        if(loaded){
+            unsigned char * pixelsDst = (unsigned char*)malloc(sizeof(unsigned char)*TEXTURE_RES*TEXTURE_RES);
+            
+            for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+                pixelsDst[i] = image.getPixelsRef()[i];
+            }
+            
+            dispatch_async(queue,
+                           ^{
+                               gcl_memcpy(stickyBuffer_gpu, pixelsDst, sizeof(cl_uchar)*TEXTURE_RES*TEXTURE_RES);
+                               delete pixelsDst;
+                           });
+        }
+        
+    }
 }
 
 int curr_read_index, curr_write_index;
@@ -321,30 +350,23 @@ static dispatch_once_t onceToken;
     if(PropB(@"loadImage")){
         SetPropB(@"loadImage",false);
         
-        
-        
         ofImage image;
         image.setUseTexture(false);
         bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
-        
         NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
         
-        unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
-        for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+        if(loaded){
+            unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+            for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+                pixelsDst[i] = image.getPixelsRef()[i*4];
+            }
             
-            pixelsDst[i] = image.getPixelsRef()[i*4];//*0.1;
+            dispatch_async(queue,
+                           ^{
+                               gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
+                               delete pixelsDst;
+                           });
         }
-        
-        dispatch_async(queue,
-                       ^{
-                           gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
-                           delete pixelsDst;
-                       });
-        
-        
-        
-        
-        NSLog(@"Load iamge  %i",loaded);
     }
     
     
@@ -361,6 +383,12 @@ static dispatch_once_t onceToken;
         for(int i=0;i<50;i++){
             float a = i/(float)50;
             ofVec2f p = ofVec2f(sin(a*TWO_PI), cos(a*TWO_PI))*20* (sin(a*TWO_PI*4)+3) + 1024*ofVec2f(trackers[0].y,1-trackers[0].x);
+            
+            p.x = MAX(0,p.x);
+            p.x = MIN(1024,p.x);
+            p.y = MAX(0,p.y);
+            p.y = MIN(1024,p.y);
+            
             trackerPoints.push_back(p);
         }
     }
@@ -643,7 +671,7 @@ static dispatch_once_t onceToken;
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
                       
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01);
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, stickyBuffer_gpu, PropF(@"stickyAmount"), PropF(@"stickyGain"));
                       
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
