@@ -46,9 +46,6 @@
     PassiveType          *countPassiveBuffer_gpu;
     cl_uint          *countCreateParticleBuffer_gpu;
 
-    //Deprecated
-    cl_uchar          *countWakeUpBuffer_gpu;
-
     BodyType          *bodyField_gpu[2];
     cl_int          *bodyBlob_gpu;
     cl_int          *forceField_gpu;

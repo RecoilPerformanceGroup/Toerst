@@ -101,7 +101,7 @@ bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const floa
 // Update the particles position 
 //
 
-kernel void update(global Particle* particles, global unsigned int * isDeadBuffer,  global unsigned  int * countInactiveCache, global unsigned int * countActiveBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, global  int * forceCache, const float forceTextureForce, const float forceTextureForceMax)
+kernel void update(global Particle* particles, global unsigned int * isDeadBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed)
 {
     size_t i = get_global_id(0);
     size_t li = get_local_id(0);

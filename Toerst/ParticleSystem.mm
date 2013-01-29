@@ -643,7 +643,7 @@ static dispatch_once_t onceToken;
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
                       
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu , generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, forceField_gpu, forceTextureForce*0.01, forceTextureMaxForce);
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01);
                       
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
