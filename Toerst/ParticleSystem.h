@@ -13,7 +13,7 @@
 #import "kernel.cl.h"
 #import "Shader.h"
 
-#define BodyDivider 4
+#define BodyDivider 8
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
@@ -26,7 +26,7 @@
 
     Shader          *diffuse;
     GLhandleARB		programObject;				// the program object
-    GLint           shaderLocations[3];
+    GLint           shaderLocations[10];
     
     ParticleCounter          *counter;
     unsigned int          * isDead;
@@ -83,6 +83,8 @@
     int frameNum;
     bool passiveWasActive;
     int newDataJumper;
+    
+    float time;
 }
 
 @property (readwrite) float clTime;

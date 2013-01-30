@@ -91,7 +91,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
     [self addPropF:@"shaderDiffuse"] ;
     [[self addPropF:@"shaderGain"] setMaxValue:10.0];
-    
+    [[self addPropF:@"shaderCrazy"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"shaderAnimalHeight"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"shaderAnimalRadius"] setMinValue:0 maxValue:20];
+    [[self addPropF:@"shaderAnimalPosX"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"shaderAnimalPosY"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"shaderAnimalLight"] setMinValue:0 maxValue:1];
+
+
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
@@ -116,7 +123,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"stickyAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"stickyGain"] setMinValue:0 maxValue:1];
     
-    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
+    [[self addPropF:@"opticalFlowMinForce"] setMinValue:0 maxValue:1];
+    
+
     
 }
 
@@ -278,7 +288,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     cout<<"Mask size: "<<maskSize<<endl;
     mask_gpu                        = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     
-    dispatch_async(queue,
+    dispatch_sync(queue,
                    ^{
                        //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
                        gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
@@ -312,7 +322,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         shaderLocations[0] = [diffuse getUniformLocation:"light"];
         shaderLocations[1] = [diffuse getUniformLocation:"gain"];
         shaderLocations[2] = [diffuse getUniformLocation:"diffuse"];
-        
+        shaderLocations[3] = [diffuse getUniformLocation:"time"];
+        shaderLocations[4] = [diffuse getUniformLocation:"resolution"];
+        shaderLocations[5] = [diffuse getUniformLocation:"crazy"];
+        shaderLocations[6] = [diffuse getUniformLocation:"animalPos"];
+        shaderLocations[7] = [diffuse getUniformLocation:"animalHeight"];
+        shaderLocations[8] = [diffuse getUniformLocation:"animalRadius"];
+        shaderLocations[9] = [diffuse getUniformLocation:"animalLight"];
+
         glUseProgramObjectARB(NULL);
         
     }
@@ -378,6 +395,7 @@ static dispatch_once_t onceToken;
     CachePropF(forceTextureMaxForce);
     CachePropB(drawForceTexture);
     CachePropF(opticalFlow);
+    CachePropF(opticalFlowMinForce);
     
     if(PropB(@"loadImage")){
         SetPropB(@"loadImage",false);
@@ -429,7 +447,7 @@ static dispatch_once_t onceToken;
     
     if(opticalFlow){
         BlobTrackerInstance2d * trackerInstance = [GetPlugin(BlobTracker2d) getInstance:0];
-        NSLog(@"Sizeeeee   %i %i",[trackerInstance opticalFlowW], [trackerInstance opticalFlowH]);
+       // NSLog(@"Sizeeeee   %i %i",[trackerInstance opticalFlowW], [trackerInstance opticalFlowH]);
         
         if([trackerInstance opticalFlowW] == OpticalFlowSize && [trackerInstance opticalFlowH] == OpticalFlowSize){
             
@@ -518,15 +536,18 @@ static dispatch_once_t onceToken;
                                   maxY = trackerPoints[i].y;
                           }
                           
-                          minX = floor(minX / 64.0f)*64.0/BodyDivider;
-                          minY = floor(minY / 64.0f)*64.0/BodyDivider;
+                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+
+                          minX = floor((minX/BodyDivider) / 32.0f)*32.0f;
+                          minY = floor((float)(minY/BodyDivider) / 32.0f)*32.0f;
                           
-                          maxX = ceil(maxX / 64.0f)*64.0/BodyDivider;
-                          maxY = ceil(maxY / 64.0f)*64.0/BodyDivider;
+                          maxX = ceil((maxX/BodyDivider) / 32.0f)*32.0f;
+                          maxY = ceil((maxY/BodyDivider) / 32.0f)*32.0f;
                           
                           
-                        //  NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
-                          cl_ndrange ndrangeBody = {
+                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+                          NSLog(@"---");
+                         cl_ndrange ndrangeBody = {
                               2,
                               {minX, minY, 0},
                               {maxX-minX, maxY-minY},
@@ -535,12 +556,33 @@ static dispatch_once_t onceToken;
                           
                           cl_ndrange ndrangeBody2 = {
                               2,
-                              {minX*BodyDivider, minY*BodyDivider, 0},
-                              {(maxX-minX)*BodyDivider, (maxY-minY)*BodyDivider},
+                              {minX, minY, 0},
+                              {maxX-minX-1, maxY-minY-1},
                               {0}
                           };
                           
+                        /*  cl_ndrange ndrangeBody2 = {
+                              2,
+                              {minX*BodyDivider, minY*BodyDivider, 0},
+                              {(maxX-minX)*BodyDivider, (maxY-minY)*BodyDivider},
+                              {0}
+                          };*/
+                        /*
                           
+                          cl_ndrange ndrangeBody = {
+                              2,
+                              {0, 0, 0},
+                              {1024/BodyDivider, 1024/BodyDivider},
+                              {0}
+                          };
+                        
+                          cl_ndrange ndrangeBody2 = {
+                              2,
+                              {0, 0, 0},
+                              {1024, 1024},
+                              {0}
+                          };
+                          */
                           //   NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
                           bodyTimer = gcl_start_timer();
                           
@@ -554,7 +596,7 @@ static dispatch_once_t onceToken;
                         
                         
                           bool flip = false;
-                          for(int i=0;i<40;i++){
+                          for(int i=0;i<10;i++){
                               updateBodyFieldStep2_kernel(&ndrangeBody, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
                               flip = !flip;
                           }
@@ -563,10 +605,6 @@ static dispatch_once_t onceToken;
                           
                           
                           updateBodyFieldStep3_kernel(&ndrangeBody2, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
-                          
-                          //   NSLog(@"Step 3 %f",gcl_stop_timer(bodyTimer));
-                          //bodyTimer = gcl_start_timer();
-                        
                           
                       }
                       
@@ -617,7 +655,7 @@ static dispatch_once_t onceToken;
                               {0}
                           };
                           
-                          opticalFlow_kernel(&ndrangeOptical, opticalFlow_gpu, forceField_gpu, 20, opticalFlow);
+                          opticalFlow_kernel(&ndrangeOptical, opticalFlow_gpu, forceField_gpu, 20, opticalFlow,opticalFlowMinForce);
                       }
                       
                       
@@ -823,6 +861,17 @@ static dispatch_once_t onceToken;
 	glUniform3fARB(shaderLocations[0], PropF(@"lightX"), PropF(@"lightY"), PropF(@"lightZ"));
     glUniform1fARB(shaderLocations[1], PropF(@"shaderGain"));
     glUniform1fARB(shaderLocations[2], PropF(@"shaderDiffuse"));
+
+    glUniform1fARB(shaderLocations[3], time+=1.0/60.0);
+    glUniform2fARB(shaderLocations[4], 1024,1024);
+    
+    glUniform1fARB(shaderLocations[5], PropF(@"shaderCrazy"));
+    
+    glUniform2fARB(shaderLocations[6], PropF(@"shaderAnimalPosX"),PropF(@"shaderAnimalPosY"));
+    glUniform1fARB(shaderLocations[7], PropF(@"shaderAnimalHeight"));
+    glUniform1fARB(shaderLocations[8], PropF(@"shaderAnimalRadius"));
+    glUniform1fARB(shaderLocations[9], PropF(@"shaderAnimalLight"));
+    
     
     glEnable( GL_TEXTURE_2D );
     glBindTexture( GL_TEXTURE_2D, texture[textureFlipFlop] );
