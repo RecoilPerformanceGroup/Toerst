@@ -18,12 +18,12 @@ uniform float animalLight;
 void main()
 {
     
-    
+    //Crazy
     vec2 halfres = resolution.xy/2.0;
     vec2 cPos = gl_FragCoord.xy;
     
-    cPos.x -= 0.5*halfres.x*sin(time/2.0)+0.3*halfres.x*cos(time)+halfres.x;
-    cPos.y -= 0.4*halfres.y*sin(time/5.0)+0.3*halfres.y*cos(time)+halfres.y;
+    cPos.x -= 512.0;//*halfres.x*sin(time/2.0)+0.3*halfres.x*cos(time)+halfres.x;
+    cPos.y -= 412.0;//*halfres.y*sin(time/5.0)+0.3*halfres.y*cos(time)+halfres.y;
     float cLength = length(cPos);
     
     vec2 uv = gl_TexCoord[0].xy+ crazy*(cPos/cLength)*sin(cLength/30.0-time*10.0)/25.0;
@@ -34,7 +34,7 @@ void main()
     l *= animalRadius;
     l = pow(3.0,-(l*l));
 
-    uv.y += l*animalHeight*texture2D(tex,uv).x;
+    uv.y += l*animalHeight*(texture2D(tex,uv).x+0.05);
     
     
     vec3 col = texture2D(tex,uv).xyz;//*50.0/cLength;

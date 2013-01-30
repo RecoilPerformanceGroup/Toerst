@@ -169,8 +169,10 @@ static void LinkProgram(GLhandleARB programObject,
 {
 	NSBundle  *appBundle = [NSBundle mainBundle];
 	
-	NSString  *shaderTempSource = [appBundle pathForResource:theShaderResourceName 
-													  ofType:theExtension];
+//	NSString  *shaderTempSource = [appBundle pathForResource:theShaderResourceName
+//													  ofType:theExtension];
+    NSString *shaderTempSource = [NSString stringWithFormat:@"/Users/recoil/Development/Toerst/Toerst/shader/%@.%@",theShaderResourceName,theExtension];
+    
 	GLcharARB *shaderSource = NULL;
 	
 	shaderTempSource = [NSString stringWithContentsOfFile:shaderTempSource];

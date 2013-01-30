@@ -85,6 +85,7 @@
     int newDataJumper;
     
     float time;
+    
 }
 
 @property (readwrite) float clTime;

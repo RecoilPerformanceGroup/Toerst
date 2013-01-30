@@ -137,24 +137,28 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         
         p->vel *= damp;
         
-        float layer = convert_float(2-p->layer)/2.0f;
+        float layer = convert_float(3-p->layer)/3.0f;
         if(layer < 0){
             layer = 0;
         }
         
+              
+       /*
         float sticky = (float)stickyBuffer[texIndex];
         sticky /= 256.0f;
-        //        sticky = stickyAmount * sticky + (1-stickyAmount);
+
         
         if(p->layer < sticky * stickyGain*10.0f){
             sticky = stickyAmount;
         } else {
             sticky = 1;
         }
-        //        float sticky = convert_float(stickyBuffer[texIndex])/256.0f;
         
         p->vel += p->f * p->mass *  sticky;
-        //        p->vel += p->f * p->mass * layer * sticky;
+        */
+        
+        
+        p->vel += p->f * p->mass * layer;// * sticky;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
@@ -638,14 +642,12 @@ kernel void updateBodyFieldStep1(global BodyType * bodyField, global int * bodyB
         
         
     } else {
-        bodyField[id*3] = -2;
+//        bodyField[id*3] = -2;
     }
     
     for(int i=0;i<numBlobPoints;i++){
         if(bodyBlob[i*2] == x && bodyBlob[i*2+1] == y ){
             bodyField[id*3] = 1;
-            bodyField[id*3+1] = 0;
-            bodyField[id*3+2] = 0;
             break;
         }
     }
@@ -677,9 +679,9 @@ kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_o
             float2 dir = (float2)(0,0);
             
             int w;
-            /*if(get_local_id(0) > 0){
+            if(get_local_id(0) > 0){
              w = bodyFieldCache[lid-1];
-             } else */{
+             } else {
                  w = bodyFieldR[(id-1)*3];
              }
             if(w > 0){
@@ -691,9 +693,9 @@ kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_o
             
             
             int e;
-            /*if(get_local_id(0) < get_local_size(0)-1){
+            if(get_local_id(0) < get_local_size(0)-1){
              e = bodyFieldCache[lid+1];
-             } else */{
+             } else {
                  e = bodyFieldR[(id+1)*3];
              }
             if(e > 0){
@@ -717,9 +719,9 @@ kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_o
             }
             
             int s;
-            /*if(get_local_id(1) < get_local_size(1)-1){
+            if(get_local_id(1) < get_local_size(1)-1){
              s = bodyFieldCache[lid+get_local_size(0)];
-             } else */{
+             } else {
                  s = bodyFieldR[(id+1024/BodyDivider)*3];
              }
             if(s > 0){
@@ -1090,7 +1092,7 @@ kernel void resetCache(global unsigned  int * countInactiveBuffer,global unsigne
     forceField[id*2+1] = 0;
     
     if(id < get_global_size(0)/(BodyDivider*BodyDivider)){
-        bodyField[id*3] = 0;
+        bodyField[id*3] = -2;
         bodyField[id*3+1] = 0;
         bodyField[id*3+2] = 0;
     }

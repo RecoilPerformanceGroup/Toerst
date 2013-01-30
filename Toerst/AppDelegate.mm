@@ -25,7 +25,7 @@
     [ocp addPlugin:[[Cameras alloc]initWithNumberCameras:1]];
     [ocp addPlugin:[[CameraCalibration alloc] init]];
     [ocp addPlugin:[[BlobTracker2d alloc] init]];
-    //[ocp addPlugin:[[Tracker alloc] init]];
+    [ocp addPlugin:[[Tracker alloc] init]];
     [ocp addPlugin:[[ParticleSystem alloc] init]];
     
     [ocp loadPlugins];
