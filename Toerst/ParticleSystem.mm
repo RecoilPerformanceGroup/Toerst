@@ -714,7 +714,7 @@ static dispatch_once_t onceToken;
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
                      
                       if(PropB(@"passiveParticles")){
-                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"));
+                          passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"),particleMinSpeed*0.5);
                           
                           passiveParticlesParticleUpdate_kernel(&ndrange, particle_gpu, countPassiveBuffer_gpu, TEXTURE_RES, isDead_gpu);
                           passiveWasActive = true;

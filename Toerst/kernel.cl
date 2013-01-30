@@ -143,7 +143,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         }
         
               
-       /*
+       
         float sticky = (float)stickyBuffer[texIndex];
         sticky /= 256.0f;
 
@@ -154,11 +154,11 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             sticky = 1;
         }
         
-        p->vel += p->f * p->mass *  sticky;
+/*        p->vel += p->f * p->mass *  sticky;
         */
         
         
-        p->vel += p->f * p->mass * layer;// * sticky;
+        p->vel += p->f * p->mass * layer * sticky;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
@@ -850,7 +850,7 @@ kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * force
 //  Passive Kernels
 //######################################################
 
-kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier){
+kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier, const float minForce){
     
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     int force = forceField[id*2] + forceField[id*2+1];
@@ -871,7 +871,7 @@ kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, glo
     else if(passiveBuffer[id] > 0 && activeBuffer[id] > 0){
         createAllPassiveParticles = true;
     }
-    else if(force != 0){
+    else if(abs(force) > minForce*FORCE_CACHE_MULT){
         createAllPassiveParticles = true;
     }
     
@@ -1000,37 +1000,8 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
         diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width]*1000 + passiveBuffer[global_id+width]*1000.0*passiveMultiplier);
     }
     
+
     
-    
-    /*   int num = 0;
-     int _diff = diff[0];
-     for(int i=1;i<4;i++){
-     if(diff[i] > diff[num]){
-     _diff = diff[i];
-     num = i;
-     }
-     }
-     
-     
-     if(_diff > minDiff){
-     switch(num){
-     case 0:
-     dir = (float2)(-0.1*_diff,0);
-     break;
-     case 1:
-     dir += (float2)(0.1*_diff,0);
-     break;
-     case 2:
-     dir += (float2)(0,-0.1*_diff);
-     break;
-     case 3:
-     dir += (float2)(0,0.1*_diff);
-     break;
-     default:
-     break;
-     }
-     }
-     */
     
     dir = (float2)(-diff[0],0);
     dir += (float2)(diff[1],0);

@@ -32,7 +32,7 @@ void main()
     //Animal
     float l = length(gl_TexCoord[0].xy - animalPos);
     l *= animalRadius;
-    l = pow(3.0,-(l*l));
+    l = pow(5.0,-(l*l));
 
     uv.y += l*animalHeight*(texture2D(tex,uv).x+0.05);
     
@@ -58,8 +58,8 @@ void main()
     
     
     // Curve
-    gl_FragColor.x = -pow(2.0,-gl_FragColor.x*5.0)+1.0;
-    gl_FragColor.y = -pow(2.0,-gl_FragColor.y*5.0)+1.0;
+    gl_FragColor.x = -pow(2.2,-gl_FragColor.x*5.0)+1.0;
+    gl_FragColor.y = -pow(2.1,-gl_FragColor.y*5.0)+1.0;
     gl_FragColor.z = -pow(2.0,-gl_FragColor.z*5.0)+1.0;
     
     
