@@ -1,0 +1,3 @@
+[submodule "Toerst/ofxMSAFluids"]
+	path = Toerst/ofxMSAFluids
+	url = https://github.com/memo/ofxMSAFluid.git
