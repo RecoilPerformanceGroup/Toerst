@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0847C35A16BA911500EE8950 /* MSACoreGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C33A16BA911500EE8950 /* MSACoreGL.cpp */; };
+		0847C36216BA911500EE8950 /* license.md in Resources */ = {isa = PBXBuildFile; fileRef = 0847C34C16BA911500EE8950 /* license.md */; };
+		0847C36316BA911500EE8950 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 0847C34D16BA911500EE8950 /* README.md */; };
+		0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35016BA911500EE8950 /* MSAFluidDrawerBase.cpp */; };
+		0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */; };
 		0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		0891E7A716B6C28B008D06AB /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
@@ -45,6 +50,22 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0847C33716BA911500EE8950 /* MSACore-OF.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "MSACore-OF.h"; sourceTree = "<group>"; };
+		0847C33816BA911500EE8950 /* MSACore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACore.h; sourceTree = "<group>"; };
+		0847C33916BA911500EE8950 /* MSACoreCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACoreCommon.h; sourceTree = "<group>"; };
+		0847C33A16BA911500EE8950 /* MSACoreGL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSACoreGL.cpp; sourceTree = "<group>"; };
+		0847C33B16BA911500EE8950 /* MSACoreGL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACoreGL.h; sourceTree = "<group>"; };
+		0847C33C16BA911500EE8950 /* MSACoreMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACoreMath.h; sourceTree = "<group>"; };
+		0847C34C16BA911500EE8950 /* license.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = license.md; sourceTree = "<group>"; };
+		0847C34D16BA911500EE8950 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
+		0847C34F16BA911500EE8950 /* MSAFluid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluid.h; sourceTree = "<group>"; };
+		0847C35016BA911500EE8950 /* MSAFluidDrawerBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAFluidDrawerBase.cpp; sourceTree = "<group>"; };
+		0847C35116BA911500EE8950 /* MSAFluidDrawerBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidDrawerBase.h; sourceTree = "<group>"; };
+		0847C35216BA911500EE8950 /* MSAFluidDrawerGl-Cinder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "MSAFluidDrawerGl-Cinder.h"; sourceTree = "<group>"; };
+		0847C35316BA911500EE8950 /* MSAFluidDrawerGl-OF.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "MSAFluidDrawerGl-OF.h"; sourceTree = "<group>"; };
+		0847C35416BA911500EE8950 /* MSAFluidParticleUpdater.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidParticleUpdater.h; sourceTree = "<group>"; };
+		0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAFluidSolver.cpp; sourceTree = "<group>"; };
+		0847C35616BA911500EE8950 /* MSAFluidSolver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidSolver.h; sourceTree = "<group>"; };
 		0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
@@ -89,6 +110,54 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0847C33116BA911500EE8950 /* ofxMSACore */ = {
+			isa = PBXGroup;
+			children = (
+				0847C33516BA911500EE8950 /* src */,
+			);
+			name = ofxMSACore;
+			path = libs/ofxMSACore;
+			sourceTree = "<group>";
+		};
+		0847C33516BA911500EE8950 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				0847C33716BA911500EE8950 /* MSACore-OF.h */,
+				0847C33816BA911500EE8950 /* MSACore.h */,
+				0847C33916BA911500EE8950 /* MSACoreCommon.h */,
+				0847C33A16BA911500EE8950 /* MSACoreGL.cpp */,
+				0847C33B16BA911500EE8950 /* MSACoreGL.h */,
+				0847C33C16BA911500EE8950 /* MSACoreMath.h */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		0847C33D16BA911500EE8950 /* ofxMSAFluids */ = {
+			isa = PBXGroup;
+			children = (
+				0847C34C16BA911500EE8950 /* license.md */,
+				0847C34D16BA911500EE8950 /* README.md */,
+				0847C34E16BA911500EE8950 /* src */,
+			);
+			name = ofxMSAFluids;
+			path = libs/ofxMSAFluids;
+			sourceTree = "<group>";
+		};
+		0847C34E16BA911500EE8950 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				0847C34F16BA911500EE8950 /* MSAFluid.h */,
+				0847C35016BA911500EE8950 /* MSAFluidDrawerBase.cpp */,
+				0847C35116BA911500EE8950 /* MSAFluidDrawerBase.h */,
+				0847C35216BA911500EE8950 /* MSAFluidDrawerGl-Cinder.h */,
+				0847C35316BA911500EE8950 /* MSAFluidDrawerGl-OF.h */,
+				0847C35416BA911500EE8950 /* MSAFluidParticleUpdater.h */,
+				0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */,
+				0847C35616BA911500EE8950 /* MSAFluidSolver.h */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
 		DDF061FC167752150014D3CE /* shader */ = {
 			isa = PBXGroup;
 			children = (
@@ -142,6 +211,8 @@
 		DDFCE90E164A9F78000DBD4D /* Toerst */ = {
 			isa = PBXGroup;
 			children = (
+				0847C33116BA911500EE8950 /* ofxMSACore */,
+				0847C33D16BA911500EE8950 /* ofxMSAFluids */,
 				DDF061F3167745620014D3CE /* Shader.h */,
 				DDF061F4167745620014D3CE /* Shader.m */,
 				DDFCE91A164A9F78000DBD4D /* AppDelegate.h */,
@@ -228,6 +299,8 @@
 				DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */,
 				DDF06205167753BD0014D3CE /* diffuse.vs in Resources */,
 				DDF06204167753BA0014D3CE /* diffuse.fs in Resources */,
+				0847C36216BA911500EE8950 /* license.md in Resources */,
+				0847C36316BA911500EE8950 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,6 +318,9 @@
 				DDFCE945164AA4B8000DBD4D /* kernel.cl in Sources */,
 				DDF06200167752150014D3CE /* diffuse.fs in Sources */,
 				DDF06202167752150014D3CE /* diffuse.vs in Sources */,
+				0847C35A16BA911500EE8950 /* MSACoreGL.cpp in Sources */,
+				0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */,
+				0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

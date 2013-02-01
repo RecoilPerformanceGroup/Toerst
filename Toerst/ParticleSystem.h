@@ -12,11 +12,13 @@
 #import <OpenCL/OpenCL.h>
 #import "kernel.cl.h"
 #import "Shader.h"
+#import "MSAFluid.h"
 
 #define BodyDivider 8
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
+#define FluidSize 128
 
 @interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate>{
     GLuint              texture[2];
@@ -55,12 +57,14 @@
     
     cl_uchar        *stickyBuffer_gpu;
     cl_int          *opticalFlow_gpu;
+    cl_int          *fluidBuffer_gpu;
 
     ParticleCounter *counter_gpu;
     
     
     int * bodyBlobData;
     int * opticalFlowData;
+    int * fluidData;
     
     BOOL            firstLoop;
     
@@ -86,6 +90,8 @@
     
     float time;
     
+    msa::fluid::Solver  fluidSolver;
+    msa::fluid::DrawerGl fluidDrawer;
 }
 
 @property (readwrite) float clTime;

@@ -61,6 +61,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 -(void)initPlugin{
     firstLoop = YES;
     [self addPropB:@"_debug"];
+    
     [self addPropB:@"passiveParticles"];
     [[self addPropF:@"passiveMultiplier"] setMinValue:0.01 maxValue:1.0];
     [[self addPropF:@"passiveBlur"] setMaxValue:0.1];
@@ -128,8 +129,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
     [[self addPropF:@"opticalFlowMinForce"] setMinValue:0 maxValue:1];
     
-
-    
+    [self addPropB:@"fluids"];
+    [self addPropB:@"fluidsDraw"];
+    [[self addPropF:@"fluidsAmount"] setMaxValue:100.0];
+    [[self addPropF:@"fluidsFadeSpeed"] setMaxValue:0.02];
+    [[self addPropF:@"fluidsDeltaT"] setMaxValue:1.0];
+    [[self addPropF:@"fluidsVisc"] setMaxValue:0.0005];
 }
 
 
@@ -263,7 +268,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     
     opticalFlow_gpu         = (cl_int*) gcl_malloc(sizeof(cl_int)*(OpticalFlowSize)*(OpticalFlowSize)*2,  nil, CL_MEM_READ_ONLY );
-    
+    fluidBuffer_gpu         = (cl_int*) gcl_malloc(sizeof(cl_int)*(FluidSize)*(FluidSize)*2,  nil, CL_MEM_READ_ONLY );
+
     counter_gpu             = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(0.5f, &maskSize);
@@ -322,6 +328,17 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         }
         
     }
+    
+    
+    
+    
+    //Fluids
+    
+    fluidSolver.setup(FluidSize,FluidSize);
+    fluidSolver.setFadeSpeed(0.002).setDeltaT(0.5).setVisc(0.00015).setColorDiffusion(0);
+    fluidDrawer.setup(&fluidSolver);
+    fluidDrawer.setDrawMode(msa::fluid::kDrawMotion);
+
 }
 
 -(void) loadShader {
@@ -342,7 +359,6 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         shaderLocations[9] = [diffuse getUniformLocation:"animalLight"];
         
         glUseProgramObjectARB(NULL);
-        
     }
 }
 
@@ -350,7 +366,7 @@ int curr_read_index, curr_write_index;
 
 -(void)update:(NSDictionary *)drawingInformation{
     
-    
+
     
 }
 
@@ -383,6 +399,9 @@ static dispatch_once_t onceToken;
     CachePropF(opticalFlow);
     CachePropF(opticalFlowMinForce);
     
+    
+    
+    
     if(PropB(@"shaderLoad")){
         SetPropB(@"shaderLoad", 0);
         [self loadShader];
@@ -411,43 +430,84 @@ static dispatch_once_t onceToken;
     }
     
     
+    dispatch_once(&onceToken, ^{
+        bodyBlobData = (int*)malloc(sizeof(int)*NUM_BLOB_POINTS*2);
+        opticalFlowData = (int*)malloc(sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
+        fluidData = (int*)malloc(sizeof(int)*FluidSize*FluidSize*2);
+    });
+    
+    
     vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     
     if(trackers.size() > 0){
         SetPropF(@"shaderAnimalPosX", trackers[0].x);
         SetPropF(@"shaderAnimalPosY", trackers[0].y);
+        
+        
+      //  Color color
+     //   fluidSolver.addColorAtIndex(index, ofColor(255,255,255));
     }
     
     
-    dispatch_once(&onceToken, ^{
-        bodyBlobData = (int*)malloc(sizeof(int)*NUM_BLOB_POINTS*2);
-        opticalFlowData = (int*)malloc(sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
-    });
     
-
-
+    
+    
+    
+    
+    
+    
     
     if(opticalFlow){
         BlobTrackerInstance2d * trackerInstance = [GetPlugin(BlobTracker2d) getInstance:0];
-       // NSLog(@"Sizeeeee   %i %i",[trackerInstance opticalFlowW], [trackerInstance opticalFlowH]);
+        // NSLog(@"Sizeeeee   %i %i",[trackerInstance opticalFlowW], [trackerInstance opticalFlowH]);
         
         if([trackerInstance opticalFlowW] == OpticalFlowSize && [trackerInstance opticalFlowH] == OpticalFlowSize){
             
             ofVec2f * _opticalFlowData = [trackerInstance opticalFlowFieldCalibrated];
-             for(int i=0;i<OpticalFlowSize*OpticalFlowSize;i++){
+            for(int i=0;i<OpticalFlowSize*OpticalFlowSize;i++){
                 opticalFlowData[i*2] = _opticalFlowData[i].x;
                 opticalFlowData[i*2+1] = _opticalFlowData[i].y;
             }
             
-           dispatch_sync(queue,
-                           ^{
-                               gcl_memcpy(opticalFlow_gpu, opticalFlowData, sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
-                           });
+            dispatch_sync(queue,
+                          ^{
+                              gcl_memcpy(opticalFlow_gpu, opticalFlowData, sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
+                          });
         }
         
         //[ opticalFlowFieldCalibrated]->
     }
     
+    if(PropB(@"fluids")){
+        if(trackers.size() > 0){
+            int index = fluidSolver.getIndexForPos(trackers[0]);
+            fluidSolver.addForceAtIndex(index, ofVec2f(1,0));
+        }
+        
+        fluidSolver.setFadeSpeed(PropF(@"fluidsFadeSpeed"));
+        fluidSolver.setVisc(PropF(@"fluidsVisc"));
+        fluidSolver.setDeltaT(PropF(@"fluidsDeltaT"));
+
+        fluidSolver.update();
+        
+        
+        for(int y=0;y<FluidSize;y++){
+            for(int x=0;x<FluidSize;x++){
+                int i = y * FluidSize + x;
+                
+                ofVec2f v=  fluidSolver.getVelocityAtPos(ofVec2f((float)x/FluidSize,(float)y/FluidSize));
+                fluidData[i*2] = v.x * 1000.0;
+                fluidData[i*2+1] = v.y * 1000.0;
+                
+                //    NSLog(@"%f %f",v.x,v.y);
+            }
+        }
+        dispatch_sync(queue,
+                      ^{
+                          gcl_memcpy(fluidBuffer_gpu, fluidData, sizeof(int)*FluidSize*FluidSize*2);
+                      });
+        
+    }
     
 
     
@@ -468,13 +528,6 @@ static dispatch_once_t onceToken;
                           {NUM_PARTICLES_FRAC, 0, 0},
                           {0}
                       };
-                 /*     cl_ndrange ndrange32 = {
-                          1,
-                          {0, 0, 0},
-                          {NUM_PARTICLES_FRAC/32, 0, 0},
-                          {0}
-                  };
-                  */
                       cl_ndrange ndrangeTex = {
                           2,
                           {0, 0, 0},
@@ -487,12 +540,6 @@ static dispatch_once_t onceToken;
                           {TEXTURE_RES*TEXTURE_RES},
                           {0}
                       };
-                      
-                      
-                      /*if(forceTextureBlur){
-                       gaussianBlurSum_kernel(&ndrangeGaus,  forceField_gpu, forceCacheBlur_gpu, TEXTURE_RES, mask_gpu, maskSize);
-                       }*/
-                      
                       
                       //------------------
                       //BODY
@@ -555,36 +602,6 @@ static dispatch_once_t onceToken;
                                   if(_maxY > maxY || maxY == -1)
                                       maxY = _maxY;
                                   
-                                  
-                                  //    NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
-                                  //  NSLog(@"---");
-                                  
-                                  
-                                  
-                                  
-                                  /*  cl_ndrange ndrangeBody2 = {
-                                   2,
-                                   {minX*BodyDivider, minY*BodyDivider, 0},
-                                   {(maxX-minX)*BodyDivider, (maxY-minY)*BodyDivider},
-                                   {0}
-                                   };*/
-                                  /*
-                                   
-                                   cl_ndrange ndrangeBody = {
-                                   2,
-                                   {0, 0, 0},
-                                   {1024/BodyDivider, 1024/BodyDivider},
-                                   {0}
-                                   };
-                                   
-                                   cl_ndrange ndrangeBody2 = {
-                                   2,
-                                   {0, 0, 0},
-                                   {1024, 1024},
-                                   {0}
-                                   };
-                                   */
-                                  //   NSLog(@"Step 0 %f",gcl_stop_timer(bodyTimer));
                                   bodyTimer = gcl_start_timer();
                                   
                                   
@@ -679,6 +696,16 @@ static dispatch_once_t onceToken;
                           };
                           
                           opticalFlow_kernel(&ndrangeOptical, opticalFlow_gpu, forceField_gpu, 20, opticalFlow,opticalFlowMinForce);
+                      }
+                      
+                      if(PropB(@"fluids")){
+                          cl_ndrange ndrangeFluids = {
+                              2,
+                              {0,0, 0},
+                              {FluidSize-1,FluidSize-1},
+                              {0}
+                          };
+                          fluids_kernel(&ndrangeFluids, fluidBuffer_gpu, forceField_gpu, 1024/FluidSize, PropF(@"fluidsAmount"));
                       }
                       
                       
@@ -977,6 +1004,10 @@ static dispatch_once_t onceToken;
     }
     
     firstLoop = NO;
+    
+    if(PropB(@"fluidsDraw")){
+     fluidDrawer.draw(0, 0, 1, 1);   
+    }
     
     PopSurface();
     

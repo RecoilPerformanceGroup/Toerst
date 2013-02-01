@@ -1,3 +1,6 @@
-[submodule "Toerst/ofxMSAFluids"]
-	path = Toerst/ofxMSAFluids
+[submodule "Toerst/libs/ofxMSAFluids"]
+	path = Toerst/libs/ofxMSAFluids
 	url = https://github.com/memo/ofxMSAFluid.git
+[submodule "Toerst/libs/ofxMSACore"]
+	path = Toerst/libs/ofxMSACore
+	url = https://github.com/memo/ofxMSACore.git
