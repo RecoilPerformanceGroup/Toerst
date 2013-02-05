@@ -135,6 +135,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"fluidsFadeSpeed"] setMaxValue:0.02];
     [[self addPropF:@"fluidsDeltaT"] setMaxValue:1.0];
     [[self addPropF:@"fluidsVisc"] setMaxValue:0.0005];
+    [[self addPropF:@"fluidsRadius"] setMaxValue:1.0];
 }
 
 
@@ -479,9 +480,21 @@ static dispatch_once_t onceToken;
     }
     
     if(PropB(@"fluids")){
+        CachePropF(fluidsRadius);
         if(trackers.size() > 0){
-            int index = fluidSolver.getIndexForPos(trackers[0]);
-            fluidSolver.addForceAtIndex(index, ofVec2f(1,0));
+            for(int y=0;y<FluidSize;y++){
+                for(int x=0;x<FluidSize;x++){
+                    int index = fluidSolver.getIndexForPos(ofVec2f(x/(float)FluidSize,y/(float)FluidSize));
+                    float d = ofVec2f(x/(float)FluidSize,y/(float)FluidSize).distance(trackers[0]);
+
+                    if(d < fluidsRadius){
+                        fluidSolver.addForceAtIndex(index, (trackers[0]-lastFluidPos)*(fluidsRadius-d)/fluidsRadius);
+                    }
+                    
+                }
+            }
+            
+            lastFluidPos = trackers[0];
         }
         
         fluidSolver.setFadeSpeed(PropF(@"fluidsFadeSpeed"));
@@ -554,99 +567,125 @@ static dispatch_once_t onceToken;
                           
                           for(int j=0;j<[tracker numberTrackers];j++){
                               vector<ofVec2f> trackerPoints = [tracker trackerBlob:j];
-                              
+                              BOOL clockwise = [tracker trackerBlobIsClockwise:j];
+                           //   if(clockwise){
                               if(trackerPoints.size() > 0){
                                   // NSLog(@"%f %f",trackerPoints[0].x ,trackerPoints[0].y );
                                   int _minX, _maxX, _minY, _maxY;
                                   _minX = _maxX = _minY = _maxY = -1;
                                   
                                   
-                                  for(int i=0;i<trackerPoints.size();i++){
-                                      trackerPoints[i].x *= 1024.0;
-                                      trackerPoints[i].y *= 1024.0;
+                                  float padding = 1;
+                                  
+                                  if(trackerPoints.size() > NUM_BLOB_POINTS){
+                                    //  NSLog(@"Num points %i",trackerPoints.size());
                                       
-                                      trackerPoints[i].x = MAX(0,trackerPoints[i].x);
-                                      trackerPoints[i].x = MIN(1024,trackerPoints[i].x);
-                                      trackerPoints[i].y = MAX(0,trackerPoints[i].y);
-                                      trackerPoints[i].y = MIN(1024,trackerPoints[i].y);
-                                      
-                                      
-                                      bodyBlobData[i*2] = trackerPoints[i].x;
-                                      bodyBlobData[i*2+1] = trackerPoints[i].y;
-                                      
-                                      if(trackerPoints[i].x < _minX || _minX == -1)
-                                          _minX = trackerPoints[i].x;
-                                      if(trackerPoints[i].x > _maxX || _maxX == -1)
-                                          _maxX = trackerPoints[i].x;
-                                      if(trackerPoints[i].y < _minY || _minY == -1)
-                                          _minY = trackerPoints[i].y;
-                                      if(trackerPoints[i].y > _maxY || _maxY == -1)
-                                          _maxY = trackerPoints[i].y;
+                                      padding = trackerPoints.size() / (float)NUM_BLOB_POINTS;
+                                      //NSLog(@"Padding %f",padding);
                                   }
                                   
-                                  //                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
                                   
-                                  _minX = floor((_minX/BodyDivider) / 32.0f)*32.0f;
-                                  _minY = floor((float)(_minY/BodyDivider) / 32.0f)*32.0f;
-                                  
-                                  _maxX = ceil((_maxX/BodyDivider) / 32.0f)*32.0f;
-                                  _maxY = ceil((_maxY/BodyDivider) / 32.0f)*32.0f;
-                                  
-                                  
-                                  if(_minX < minX || minX == -1)
-                                      minX = _minX;
-                                  if(_maxX > maxX || maxX == -1)
-                                      maxX = _maxX;
-                                  if(_minY < minY || minY == -1)
-                                      minY = _minY;
-                                  if(_maxY > maxY || maxY == -1)
-                                      maxY = _maxY;
-                                  
-                                  bodyTimer = gcl_start_timer();
-                                  
-                                  
-                                  gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*trackerPoints.size()*2);
-                                  
-                                  cl_ndrange ndrangeBody = {
-                                      2,
-                                      {_minX, _minY, 0},
-                                      {_maxX-_minX, _maxY-_minY},
-                                      {0}
-                                  };
-                                  
-                                  updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, trackerPoints.size());
-                                  
+                                  int numPoints = trackerPoints.size();
+                                  if(numPoints > 100){
+                                      int ii=0;
+                                      for(float i=0;i<numPoints;i+=padding){
+                                          trackerPoints[i].x *= 1024.0;
+                                          trackerPoints[i].y *= 1024.0;
+                                          
+                                          trackerPoints[i].x = MAX(0,trackerPoints[i].x);
+                                          trackerPoints[i].x = MIN(1024,trackerPoints[i].x);
+                                          trackerPoints[i].y = MAX(0,trackerPoints[i].y);
+                                          trackerPoints[i].y = MIN(1024,trackerPoints[i].y);
+                                          
+                                          
+                                          if(!clockwise){
+                                              bodyBlobData[int(((numPoints/padding)-ii)*2)] = trackerPoints[i].x;
+                                              bodyBlobData[int(((numPoints/padding)-ii)*2+1)] = trackerPoints[i].y;
+                                          } else {
+                                              bodyBlobData[(ii)*2] = trackerPoints[i].x;
+                                              bodyBlobData[(ii)*2+1] = trackerPoints[i].y;
+                                              
+                                          }
+                                          if(trackerPoints[i].x < _minX || _minX == -1)
+                                              _minX = trackerPoints[i].x;
+                                          if(trackerPoints[i].x > _maxX || _maxX == -1)
+                                              _maxX = trackerPoints[i].x;
+                                          if(trackerPoints[i].y < _minY || _minY == -1)
+                                              _minY = trackerPoints[i].y;
+                                          if(trackerPoints[i].y > _maxY || _maxY == -1)
+                                              _maxY = trackerPoints[i].y;
+                                          
+                                          ii ++;
+                                      }
+                                      
+                                      //                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+                                      
+                                      _minX = floor((_minX/BodyDivider) / 32.0f)*32.0f;
+                                      _minY = floor((float)(_minY/BodyDivider) / 32.0f)*32.0f;
+                                      
+                                      _maxX = ceil((_maxX/BodyDivider) / 32.0f)*32.0f;
+                                      _maxY = ceil((_maxY/BodyDivider) / 32.0f)*32.0f;
+                                      
+                                      
+                                      if(_minX < minX || minX == -1)
+                                          minX = _minX;
+                                      if(_maxX > maxX || maxX == -1)
+                                          maxX = _maxX;
+                                      if(_minY < minY || minY == -1)
+                                          minY = _minY;
+                                      if(_maxY > maxY || maxY == -1)
+                                          maxY = _maxY;
+                                      
+                                      bodyTimer = gcl_start_timer();
+                                      
+                                      
+                                      gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*numPoints*2/padding);
+                                      
+                                      cl_ndrange ndrangeBody = {
+                                          2,
+                                          {_minX, _minY, 0},
+                                          {_maxX-_minX, _maxY-_minY},
+                                          {0}
+                                      };
+                                      
+                                      updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, numPoints/padding);
+                                      
+                                  }
+                         //     }
+                              
                               }
                           }
-                          cl_ndrange ndrangeBody2 = {
-                              2,
-                              {minX, minY, 0},
-                              {maxX-minX, maxY-minY},
-                              {0}
-                          };
-                          
-                          // NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
-                          bodyTimer = gcl_start_timer();
-                          
-                          
-                          bool flip = false;
-                          for(int i=0;i<10;i++){
-                              updateBodyFieldStep2_kernel(&ndrangeBody2, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
-                              flip = !flip;
+                          if(minX >=0 && minY >= 0){
+                              
+                              cl_ndrange ndrangeBody2 = {
+                                  2,
+                                  {minX, minY, 0},
+                                  {maxX-minX, maxY-minY},
+                                  {0}
+                              };
+                              
+                              // NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
+                              bodyTimer = gcl_start_timer();
+                              
+                              bool flip = false;
+                              for(int i=0;i<10;i++){
+                                  updateBodyFieldStep2_kernel(&ndrangeBody2, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
+                                  flip = !flip;
+                              }
+                              // NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
+                              bodyTimer = gcl_start_timer();
+                              
+                              
+                              cl_ndrange ndrangeBody3 = {
+                                  2,
+                                  {minX, minY, 0},
+                                  {maxX-minX-1, maxY-minY-1},
+                                  {0}
+                              };
+                              
+                              updateBodyFieldStep3_kernel(&ndrangeBody3, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
+                              
                           }
-                          // NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
-                          bodyTimer = gcl_start_timer();
-                          
-                          
-                          cl_ndrange ndrangeBody3 = {
-                              2,
-                              {minX, minY, 0},
-                              {maxX-minX-1, maxY-minY-1},
-                              {0}
-                          };
-                          
-                          updateBodyFieldStep3_kernel(&ndrangeBody3, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
-                          
                           
                       }
                       
@@ -819,7 +858,7 @@ static dispatch_once_t onceToken;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier"));
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier"), bodyField_gpu[0]);
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
@@ -996,17 +1035,18 @@ static dispatch_once_t onceToken;
     
     ApplySurface(@"Floor");
     
-    
+    if(0){
     //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
     ofSetColor(100, 100, 100);
     for(int i=0;i<trackers.size();i++){
         ofCircle(trackers[i].x, trackers[i].y, 0.01);
     }
     
+    }
     firstLoop = NO;
     
     if(PropB(@"fluidsDraw")){
-     fluidDrawer.draw(0, 0, 1, 1);   
+     fluidDrawer.draw(0, 0, 1, 1); 
     }
     
     PopSurface();

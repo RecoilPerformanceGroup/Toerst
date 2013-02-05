@@ -1,7 +1,7 @@
 
 #define BodyType short
 #define PassiveType uint
-#define BodyDivider 8
+#define BodyDivider 4
 
 
 typedef struct{
@@ -41,7 +41,19 @@ int getTexIndex(float2 pos, int textureWidth){
 }
 
 
-bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
+bool pointInPolygon(const int nvert, global int * polyPoints, int2 point){
+
+    int i, j, c = 0;
+    for (i = 0, j = nvert-1; i < nvert; j = i++) {
+        if ( ((polyPoints[i*2+1]>point.y) != (polyPoints[j*2+1]>point.y)) &&
+            (point.x < (polyPoints[j*2]-polyPoints[i*2]) * (point.y-polyPoints[i*2+1]) / (polyPoints[j*2+1]-polyPoints[i*2+1]) + polyPoints[i*2]) )
+            c = !c;
+    }
+    return c;
+}
+
+
+/*bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
     int   i, j=polySides-1 ;
     bool  oddNodes=false ;
     
@@ -56,7 +68,7 @@ bool pointInPolygon(const int polySides, global int * polyPoints, int2 point) {
         j=i; }
     
     return oddNodes; }
-
+*/
 __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 
@@ -158,7 +170,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         */
         
         
-        p->vel += p->f * p->mass * layer * sticky;
+        p->vel += p->f * p->mass ;//* layer * sticky;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
@@ -186,19 +198,23 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             //Boundary check
             bool kill = false;
             if(p->pos.x >= 1){
-                kill = true;
+          //      kill = true;
+                p->pos.x -= 1;
             }
             
             if(p->pos.y >= 1){
-                kill = true;
+             //   kill = true;
+                p->pos.y -= 1;
             }
             
             if(p->pos.x <= 0){
-                kill = true;
+              //  kill = true;
+                p->pos.x += 1;
             }
             
             if(p->pos.y <= 0){
-                kill = true;
+             //   kill = true;
+                p->pos.y += 1;
             }
             
             if(kill){
@@ -680,11 +696,11 @@ kernel void updateBodyFieldStep1(global BodyType * bodyField, global int * bodyB
         
         
     } else {
-//        bodyField[id*3] = -2;
+        //        bodyField[id*3] = -2;
     }
     
     for(int i=0;i<numBlobPoints;i++){
-        if(bodyBlob[i*2] == x && bodyBlob[i*2+1] == y ){
+        if(bodyBlob[i*2]/BodyDivider == x/BodyDivider && bodyBlob[i*2+1]/BodyDivider == y/BodyDivider ){
             bodyField[id*3] = 1;
             break;
         }
@@ -974,7 +990,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global P
 
 
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global PassiveType * passiveBuffer,  const float passiveMultiplier){
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global PassiveType * passiveBuffer,  const float passiveMultiplier, global BodyType * bodyField){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -990,12 +1006,13 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     int groupy = get_group_id(1)*get_local_size(1);
     
     int global_id = idy*width + idx;
+    int body_global_id = idy/BodyDivider*width/BodyDivider + idx/BodyDivider;
     
     
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;// + bodyField[global_id*3+1]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;// + bodyField[body_global_id*3]*1000.0;
     
     
     //--------

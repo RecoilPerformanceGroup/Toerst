@@ -14,7 +14,7 @@
 #import "Shader.h"
 #import "MSAFluid.h"
 
-#define BodyDivider 8
+#define BodyDivider 4
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
@@ -92,6 +92,7 @@
     
     msa::fluid::Solver  fluidSolver;
     msa::fluid::DrawerGl fluidDrawer;
+    ofVec2f lastFluidPos;
 }
 
 @property (readwrite) float clTime;
