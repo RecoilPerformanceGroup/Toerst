@@ -15,6 +15,9 @@ uniform float animalHeight;
 uniform float animalRadius;
 uniform float animalLight;
 
+uniform vec3 globalLightPos;
+uniform float globalLightIntensity;
+
 void main()
 {
     
@@ -56,6 +59,14 @@ void main()
 	gl_FragColor = gl_Color * texture.a;// * NdotL + ambient;
     gl_FragColor.xyz *= NdotL * texture.r * gain;
     
+    vec3 pos;
+    pos.x = gl_TexCoord[0].x;
+    pos.y = gl_TexCoord[0].y;
+    pos.z= 0.0;
+    
+    float lightDist = length(globalLightPos -  pos);
+    lightDist = 1.0/lightDist;
+    gl_FragColor *= lightDist*globalLightIntensity;
     
     // Curve
     gl_FragColor.x = -pow(2.2,-gl_FragColor.x*5.0)+1.0;

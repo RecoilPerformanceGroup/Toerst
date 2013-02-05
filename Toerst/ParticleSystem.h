@@ -14,7 +14,7 @@
 #import "Shader.h"
 #import "MSAFluid.h"
 
-#define BodyDivider 4
+#define BodyDivider 2
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
@@ -28,7 +28,7 @@
 
     Shader          *diffuse;
     GLhandleARB		programObject;				// the program object
-    GLint           shaderLocations[10];
+    GLint           shaderLocations[12];
     
     ParticleCounter          *counter;
     unsigned int          * isDead;
@@ -65,6 +65,7 @@
     int * bodyBlobData;
     int * opticalFlowData;
     int * fluidData;
+    BodyType * bodyFieldData;
     
     BOOL            firstLoop;
     

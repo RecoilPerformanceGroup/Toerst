@@ -101,7 +101,13 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"shaderAnimalLight"] setMinValue:0 maxValue:1];
     [self addPropB:@"shaderLoad"] ;
 
+    [[self addPropF:@"globalLightPosX"] setMinValue:-1 maxValue:2];
+    [[self addPropF:@"globalLightPosY"] setMinValue:-1 maxValue:2];
+    [[self addPropF:@"globalLightPosZ"] setMinValue:0 maxValue:2];
 
+    [[self addPropF:@"globalLightIntensity"] setMinValue:0 maxValue:2];
+
+    
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
@@ -136,6 +142,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"fluidsDeltaT"] setMaxValue:1.0];
     [[self addPropF:@"fluidsVisc"] setMaxValue:0.0005];
     [[self addPropF:@"fluidsRadius"] setMaxValue:1.0];
+
+    [[self addPropF:@"trackerDilate"] setMaxValue:10];
+
 }
 
 
@@ -164,7 +173,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         p.inactive = NO;
         p.alpha = 0.0;
         p.layer = 0;
-       
+        
     }
     
     isDead = (cl_uint*)malloc(sizeof(cl_uint)*NUM_PARTICLES/32);
@@ -270,7 +279,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     opticalFlow_gpu         = (cl_int*) gcl_malloc(sizeof(cl_int)*(OpticalFlowSize)*(OpticalFlowSize)*2,  nil, CL_MEM_READ_ONLY );
     fluidBuffer_gpu         = (cl_int*) gcl_malloc(sizeof(cl_int)*(FluidSize)*(FluidSize)*2,  nil, CL_MEM_READ_ONLY );
-
+    
     counter_gpu             = (ParticleCounter*) gcl_malloc(sizeof(ParticleCounter),  nil, CL_MEM_READ_WRITE );
     
     float * mask =createBlurMask(0.5f, &maskSize);
@@ -278,12 +287,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     mask_gpu                        = (cl_float*) gcl_malloc(sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1),  mask, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     
     dispatch_sync(queue,
-                   ^{
-                       //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
-                       gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
-                       gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
-                       gcl_memcpy(isDead_gpu, isDead, sizeof(cl_int)*(NUM_PARTICLES/32));
-                   });
+                  ^{
+                      //  gcl_memcpy(pos_gpu, (ParticleVBO*)particlesVboData, sizeof(ParticleVBO)*NUM_PARTICLES);
+                      gcl_memcpy(mask_gpu, mask, sizeof(cl_float)*(maskSize*2+1)*(maskSize*2+1));
+                      gcl_memcpy(counter_gpu, counter, sizeof(ParticleCounter));
+                      gcl_memcpy(isDead_gpu, isDead, sizeof(cl_int)*(NUM_PARTICLES/32));
+                  });
     
     cl_device_id cl_device = gcl_get_device_id_with_dispatch_queue(queue);
     char name[128];
@@ -339,7 +348,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     fluidSolver.setFadeSpeed(0.002).setDeltaT(0.5).setVisc(0.00015).setColorDiffusion(0);
     fluidDrawer.setup(&fluidSolver);
     fluidDrawer.setDrawMode(msa::fluid::kDrawMotion);
-
+    
 }
 
 -(void) loadShader {
@@ -358,6 +367,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
         shaderLocations[7] = [diffuse getUniformLocation:"animalHeight"];
         shaderLocations[8] = [diffuse getUniformLocation:"animalRadius"];
         shaderLocations[9] = [diffuse getUniformLocation:"animalLight"];
+        shaderLocations[10] = [diffuse getUniformLocation:"globalLightPos"];
+        shaderLocations[11] = [diffuse getUniformLocation:"globalLightIntensity"];
         
         glUseProgramObjectARB(NULL);
     }
@@ -367,7 +378,7 @@ int curr_read_index, curr_write_index;
 
 -(void)update:(NSDictionary *)drawingInformation{
     
-
+    
     
 }
 
@@ -400,8 +411,13 @@ static dispatch_once_t onceToken;
     CachePropF(opticalFlow);
     CachePropF(opticalFlowMinForce);
     
-    
-    
+    Tracker * tracker = GetPlugin(Tracker);
+
+
+
+    __block ofxCvGrayscaleImage trackerImage = [tracker trackerImageWithSize:CGSizeMake(1024/BodyDivider, 1024/BodyDivider)];
+    trackerImage.blurGaussian(PropI(@"trackerDilate"));
+
     
     if(PropB(@"shaderLoad")){
         SetPropB(@"shaderLoad", 0);
@@ -435,6 +451,7 @@ static dispatch_once_t onceToken;
         bodyBlobData = (int*)malloc(sizeof(int)*NUM_BLOB_POINTS*2);
         opticalFlowData = (int*)malloc(sizeof(int)*OpticalFlowSize*OpticalFlowSize*2);
         fluidData = (int*)malloc(sizeof(int)*FluidSize*FluidSize*2);
+        bodyFieldData = (BodyType*)malloc(sizeof(BodyType)*(1024/BodyDivider)*(1024/BodyDivider)*3);
     });
     
     
@@ -445,8 +462,8 @@ static dispatch_once_t onceToken;
         SetPropF(@"shaderAnimalPosY", trackers[0].y);
         
         
-      //  Color color
-     //   fluidSolver.addColorAtIndex(index, ofColor(255,255,255));
+        //  Color color
+        //   fluidSolver.addColorAtIndex(index, ofColor(255,255,255));
     }
     
     
@@ -486,7 +503,7 @@ static dispatch_once_t onceToken;
                 for(int x=0;x<FluidSize;x++){
                     int index = fluidSolver.getIndexForPos(ofVec2f(x/(float)FluidSize,y/(float)FluidSize));
                     float d = ofVec2f(x/(float)FluidSize,y/(float)FluidSize).distance(trackers[0]);
-
+                    
                     if(d < fluidsRadius){
                         fluidSolver.addForceAtIndex(index, (trackers[0]-lastFluidPos)*(fluidsRadius-d)/fluidsRadius);
                     }
@@ -500,7 +517,7 @@ static dispatch_once_t onceToken;
         fluidSolver.setFadeSpeed(PropF(@"fluidsFadeSpeed"));
         fluidSolver.setVisc(PropF(@"fluidsVisc"));
         fluidSolver.setDeltaT(PropF(@"fluidsDeltaT"));
-
+        
         fluidSolver.update();
         
         
@@ -522,7 +539,7 @@ static dispatch_once_t onceToken;
         
     }
     
-
+    
     
     dispatch_sync(queue,
                   ^{
@@ -559,104 +576,148 @@ static dispatch_once_t onceToken;
                       //------------------
                       int minX, maxX, minY, maxY;
                       minX = maxX = minY = maxY = -1;
-                      Tracker * tracker = GetPlugin(Tracker);
                       
                       if([tracker numberTrackers] >  0){
                           cl_timer bodyTimer = gcl_start_timer();
                           
+                          int _minX, _maxX, _minY, _maxY;
+                          _minX = _maxX = _minY = _maxY = -1;
+                          int w = 1024/BodyDivider;
                           
-                          for(int j=0;j<[tracker numberTrackers];j++){
-                              vector<ofVec2f> trackerPoints = [tracker trackerBlob:j];
-                              BOOL clockwise = [tracker trackerBlobIsClockwise:j];
-                           //   if(clockwise){
-                              if(trackerPoints.size() > 0){
-                                  // NSLog(@"%f %f",trackerPoints[0].x ,trackerPoints[0].y );
-                                  int _minX, _maxX, _minY, _maxY;
-                                  _minX = _maxX = _minY = _maxY = -1;
-                                  
-                                  
-                                  float padding = 1;
-                                  
-                                  if(trackerPoints.size() > NUM_BLOB_POINTS){
-                                    //  NSLog(@"Num points %i",trackerPoints.size());
-                                      
-                                      padding = trackerPoints.size() / (float)NUM_BLOB_POINTS;
-                                      //NSLog(@"Padding %f",padding);
-                                  }
-                                  
-                                  
-                                  int numPoints = trackerPoints.size();
-                                  if(numPoints > 100){
-                                      int ii=0;
-                                      for(float i=0;i<numPoints;i+=padding){
-                                          trackerPoints[i].x *= 1024.0;
-                                          trackerPoints[i].y *= 1024.0;
-                                          
-                                          trackerPoints[i].x = MAX(0,trackerPoints[i].x);
-                                          trackerPoints[i].x = MIN(1024,trackerPoints[i].x);
-                                          trackerPoints[i].y = MAX(0,trackerPoints[i].y);
-                                          trackerPoints[i].y = MIN(1024,trackerPoints[i].y);
-                                          
-                                          
-                                          if(!clockwise){
-                                              bodyBlobData[int(((numPoints/padding)-ii)*2)] = trackerPoints[i].x;
-                                              bodyBlobData[int(((numPoints/padding)-ii)*2+1)] = trackerPoints[i].y;
-                                          } else {
-                                              bodyBlobData[(ii)*2] = trackerPoints[i].x;
-                                              bodyBlobData[(ii)*2+1] = trackerPoints[i].y;
-                                              
-                                          }
-                                          if(trackerPoints[i].x < _minX || _minX == -1)
-                                              _minX = trackerPoints[i].x;
-                                          if(trackerPoints[i].x > _maxX || _maxX == -1)
-                                              _maxX = trackerPoints[i].x;
-                                          if(trackerPoints[i].y < _minY || _minY == -1)
-                                              _minY = trackerPoints[i].y;
-                                          if(trackerPoints[i].y > _maxY || _maxY == -1)
-                                              _maxY = trackerPoints[i].y;
-                                          
-                                          ii ++;
-                                      }
-                                      
-                                      //                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
-                                      
-                                      _minX = floor((_minX/BodyDivider) / 32.0f)*32.0f;
-                                      _minY = floor((float)(_minY/BodyDivider) / 32.0f)*32.0f;
-                                      
-                                      _maxX = ceil((_maxX/BodyDivider) / 32.0f)*32.0f;
-                                      _maxY = ceil((_maxY/BodyDivider) / 32.0f)*32.0f;
-                                      
-                                      
-                                      if(_minX < minX || minX == -1)
-                                          minX = _minX;
-                                      if(_maxX > maxX || maxX == -1)
-                                          maxX = _maxX;
-                                      if(_minY < minY || minY == -1)
-                                          minY = _minY;
-                                      if(_maxY > maxY || maxY == -1)
-                                          maxY = _maxY;
-                                      
-                                      bodyTimer = gcl_start_timer();
-                                      
-                                      
-                                      gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*numPoints*2/padding);
-                                      
-                                      cl_ndrange ndrangeBody = {
-                                          2,
-                                          {_minX, _minY, 0},
-                                          {_maxX-_minX, _maxY-_minY},
-                                          {0}
-                                      };
-                                      
-                                      updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, numPoints/padding);
-                                      
-                                  }
-                         //     }
+                          for(int i=0;i<w*w;i++){
+                              bodyFieldData[i*3] = -2;
+                          }
+                          
+                          //  for(int j=0;j<[tracker numberTrackers];j++){
+/*                          for(int d=0;d<PropI(@"trackerDilate");d++){
+                              trackerImage.dilate();
+                          }*/
+                          for(int i=0;i<w*w;i++){
+                              int x = i%w;
+                              int y = floor((float)i / w);
                               
+                              
+                              unsigned char pixel = trackerImage.getPixels()[i];
+                              if(pixel){
+                                  bodyFieldData[i*3] = pixel;
+                                  if(x < minX || minX == -1)
+                                      minX = x;
+                                  if(x > maxX || maxX == -1)
+                                      maxX = x;
+                                  if(y < minY || minY == -1)
+                                      minY = y;
+                                  if(y > maxY || maxY == -1)
+                                      maxY = y;
+                                  
                               }
                           }
+                          
+                          CachePropI(trackerDilate);
+
+                          minX = MAX(0, minX - trackerDilate);
+                          minY = MAX(0, minY - trackerDilate);
+                          maxX = MIN(w, maxX + trackerDilate);
+                          maxY = MIN(w, maxY + trackerDilate);
+
+                          
+                          
+                          // }
+                          
+                          gcl_memcpy(bodyField_gpu[0], bodyFieldData, sizeof(BodyType)*3*(1024/BodyDivider)*(1024/BodyDivider));
+                          
+                          
+                          
+                          /*    vector<ofVec2f> trackerPoints = [tracker trackerBlob:j];
+                           BOOL clockwise = [tracker trackerBlobIsClockwise:j];
+                           //   if(clockwise){
+                           if(trackerPoints.size() > 0){
+                           // NSLog(@"%f %f",trackerPoints[0].x ,trackerPoints[0].y );
+                           int _minX, _maxX, _minY, _maxY;
+                           _minX = _maxX = _minY = _maxY = -1;
+                           
+                           
+                           float padding = 1;
+                           
+                           if(trackerPoints.size() > NUM_BLOB_POINTS){
+                           //  NSLog(@"Num points %i",trackerPoints.size());
+                           
+                           padding = trackerPoints.size() / (float)NUM_BLOB_POINTS;
+                           //NSLog(@"Padding %f",padding);
+                           }
+                           
+                           
+                           int numPoints = trackerPoints.size();
+                           if(numPoints > 100){
+                           int ii=0;
+                           for(float i=0;i<numPoints;i+=padding){
+                           trackerPoints[i].x *= 1024.0;
+                           trackerPoints[i].y *= 1024.0;
+                           
+                           trackerPoints[i].x = MAX(0,trackerPoints[i].x);
+                           trackerPoints[i].x = MIN(1024,trackerPoints[i].x);
+                           trackerPoints[i].y = MAX(0,trackerPoints[i].y);
+                           trackerPoints[i].y = MIN(1024,trackerPoints[i].y);
+                           
+                           
+                           if(!clockwise){
+                           bodyBlobData[int(((numPoints/padding)-ii)*2)] = trackerPoints[i].x;
+                           bodyBlobData[int(((numPoints/padding)-ii)*2+1)] = trackerPoints[i].y;
+                           } else {
+                           bodyBlobData[(ii)*2] = trackerPoints[i].x;
+                           bodyBlobData[(ii)*2+1] = trackerPoints[i].y;
+                           
+                           }
+                           if(trackerPoints[i].x < _minX || _minX == -1)
+                           _minX = trackerPoints[i].x;
+                           if(trackerPoints[i].x > _maxX || _maxX == -1)
+                           _maxX = trackerPoints[i].x;
+                           if(trackerPoints[i].y < _minY || _minY == -1)
+                           _minY = trackerPoints[i].y;
+                           if(trackerPoints[i].y > _maxY || _maxY == -1)
+                           _maxY = trackerPoints[i].y;
+                           
+                           ii ++;
+                           }
+                           
+                           //                          NSLog(@"%i %i %i %i",minX,maxX,minY,maxY);
+                           
+                           _minX = floor((_minX/BodyDivider) / 32.0f)*32.0f;
+                           _minY = floor((float)(_minY/BodyDivider) / 32.0f)*32.0f;
+                           
+                           _maxX = ceil((_maxX/BodyDivider) / 32.0f)*32.0f;
+                           _maxY = ceil((_maxY/BodyDivider) / 32.0f)*32.0f;
+                           
+                           
+                           if(_minX < minX || minX == -1)
+                           minX = _minX;
+                           if(_maxX > maxX || maxX == -1)
+                           maxX = _maxX;
+                           if(_minY < minY || minY == -1)
+                           minY = _minY;
+                           if(_maxY > maxY || maxY == -1)
+                           maxY = _maxY;
+                           
+                           bodyTimer = gcl_start_timer();
+                           
+                           
+                           gcl_memcpy(bodyBlob_gpu, bodyBlobData, sizeof(int)*numPoints*2/padding);
+                           
+                           cl_ndrange ndrangeBody = {
+                           2,
+                           {_minX, _minY, 0},
+                           {_maxX-_minX, _maxY-_minY},
+                           {0}
+                           };
+                           
+                           updateBodyFieldStep1_kernel(&ndrangeBody, bodyField_gpu[0], bodyBlob_gpu, numPoints/padding);
+                           
+                           }
+                           //     }
+                           
+                           }*/
+                          //   NSLog(@"(%i,%i) (%i,%i)",minX,minY, maxX, maxY);
+                          
                           if(minX >=0 && minY >= 0){
-                              
                               cl_ndrange ndrangeBody2 = {
                                   2,
                                   {minX, minY, 0},
@@ -666,12 +727,14 @@ static dispatch_once_t onceToken;
                               
                               // NSLog(@"Step 1 %f",gcl_stop_timer(bodyTimer));
                               bodyTimer = gcl_start_timer();
-                              
-                              bool flip = false;
-                              for(int i=0;i<10;i++){
+                              /*
+                             bool flip = false;
+                              for(int i=0;i<30;i++){
                                   updateBodyFieldStep2_kernel(&ndrangeBody2, bodyField_gpu[flip], bodyField_gpu[!flip],i, sizeof(int)*1024);
                                   flip = !flip;
-                              }
+                              }*/
+                              
+                              updateBodyFieldStepDir_kernel(&ndrangeBody2, bodyField_gpu[0],sizeof(int)*1024);
                               // NSLog(@"Step 2 %f",gcl_stop_timer(bodyTimer));
                               bodyTimer = gcl_start_timer();
                               
@@ -683,7 +746,7 @@ static dispatch_once_t onceToken;
                                   {0}
                               };
                               
-                              updateBodyFieldStep3_kernel(&ndrangeBody3, bodyField_gpu[flip], forceField_gpu, mouseForce*0.1);
+                              updateBodyFieldStep3_kernel(&ndrangeBody3, bodyField_gpu[0], forceField_gpu, mouseForce*0.1);
                               
                           }
                           
@@ -709,8 +772,8 @@ static dispatch_once_t onceToken;
                           mousePos.s[0] = trackers[i].x;
                           mousePos.s[1] = trackers[i].y;
                           if(mouseForce){
-//                           mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
-                           }
+                              //                           mouseForce_kernel(&ndrangeTex, forceField_gpu, mousePos , mouseForce*0.1, mouseRadius*0.3);
+                          }
                           
                           if(mouseAdd){
                               mouseAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, mousePos, mouseRadius, mouseAdd);
@@ -778,7 +841,7 @@ static dispatch_once_t onceToken;
                       cl_timer passiveTimer = gcl_start_timer();
                       
                       sumParticleActivity_kernel(&ndrange, particle_gpu,countActiveBuffer_gpu, countInactiveBuffer_gpu, TEXTURE_RES);
-                     
+                      
                       if(PropB(@"passiveParticles")){
                           passiveParticlesBufferUpdate_kernel(&ndrangeTex, countPassiveBuffer_gpu, countInactiveBuffer_gpu, countActiveBuffer_gpu, countCreateParticleBuffer_gpu, forceField_gpu, PropF(@"passiveMultiplier"),particleMinSpeed*0.5);
                           
@@ -909,25 +972,25 @@ static dispatch_once_t onceToken;
                       
                       if(PropB(@"_debug")){
                           newDataJumper ++;
-                      if(!firstLoop && newDataJumper %5 == 0){
-                          dispatch_async(dispatch_get_main_queue(), ^{
-                              NSDictionary * dict = @{
-                              totalIdentifier : @(totalTime),
-                              updateIdentifier : @(updateTime),
-                              updateTextureIdentifier :@(updateTexTime+updateTime),
-                              sumIdentifier : @(sumTime+updateTexTime+updateTime),
-                              forceIdentifier : @(forceTime+sumTime+updateTexTime+updateTime),
-                              passiveIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime),
-                              addIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime+addTime),
-                              activeIdentifier : @(0.1*counter->activeParticles/(float)NUM_PARTICLES_FRAC),
-                              inactiveIdentifier : @(0.1*counter->inactiveParticles/(float)NUM_PARTICLES_FRAC),
-                              deadIdentifier : @(0.1*counter->deadParticles/(float)NUM_PARTICLES_FRAC)
-                              };
+                          if(!firstLoop && newDataJumper %5 == 0){
+                              dispatch_async(dispatch_get_main_queue(), ^{
+                                  NSDictionary * dict = @{
+                                  totalIdentifier : @(totalTime),
+                                  updateIdentifier : @(updateTime),
+                                  updateTextureIdentifier :@(updateTexTime+updateTime),
+                                  sumIdentifier : @(sumTime+updateTexTime+updateTime),
+                                  forceIdentifier : @(forceTime+sumTime+updateTexTime+updateTime),
+                                  passiveIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime),
+                                  addIdentifier : @(forceTime+sumTime+updateTexTime+updateTime+passiveTime+addTime),
+                                  activeIdentifier : @(0.1*counter->activeParticles/(float)NUM_PARTICLES_FRAC),
+                                  inactiveIdentifier : @(0.1*counter->inactiveParticles/(float)NUM_PARTICLES_FRAC),
+                                  deadIdentifier : @(0.1*counter->deadParticles/(float)NUM_PARTICLES_FRAC)
+                                  };
+                                  
+                                    [self performSelector:@selector(newData:) withObject:dict afterDelay:0.1];
+                              });
                               
-                            //  [self performSelector:@selector(newData:) withObject:dict afterDelay:0.1];
-                          });
-                          
-                      }
+                          }
                       }
                       
                       
@@ -951,7 +1014,7 @@ static dispatch_once_t onceToken;
 	glUniform3fARB(shaderLocations[0], PropF(@"lightX"), PropF(@"lightY"), PropF(@"lightZ"));
     glUniform1fARB(shaderLocations[1], PropF(@"shaderGain"));
     glUniform1fARB(shaderLocations[2], PropF(@"shaderDiffuse"));
-
+    
     glUniform1fARB(shaderLocations[3], time+=1.0/60.0);
     glUniform2fARB(shaderLocations[4], 1024,1024);
     
@@ -961,6 +1024,8 @@ static dispatch_once_t onceToken;
     glUniform1fARB(shaderLocations[7], PropF(@"shaderAnimalHeight"));
     glUniform1fARB(shaderLocations[8], PropF(@"shaderAnimalRadius"));
     glUniform1fARB(shaderLocations[9], PropF(@"shaderAnimalLight"));
+    glUniform3fARB(shaderLocations[10], PropF(@"globalLightPosX"),PropF(@"globalLightPosY"),PropF(@"globalLightPosZ"));
+    glUniform1fARB(shaderLocations[11], PropF(@"globalLightIntensity"));
     
     
     glEnable( GL_TEXTURE_2D );
@@ -1036,17 +1101,17 @@ static dispatch_once_t onceToken;
     ApplySurface(@"Floor");
     
     if(0){
-    //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
-    ofSetColor(100, 100, 100);
-    for(int i=0;i<trackers.size();i++){
-        ofCircle(trackers[i].x, trackers[i].y, 0.01);
-    }
-    
+        //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
+        ofSetColor(100, 100, 100);
+        for(int i=0;i<trackers.size();i++){
+            ofCircle(trackers[i].x, trackers[i].y, 0.01);
+        }
+        
     }
     firstLoop = NO;
     
     if(PropB(@"fluidsDraw")){
-     fluidDrawer.draw(0, 0, 1, 1); 
+        fluidDrawer.draw(0, 0, 1, 1);
     }
     
     PopSurface();
