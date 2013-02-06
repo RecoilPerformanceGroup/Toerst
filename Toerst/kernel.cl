@@ -131,7 +131,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
     
     //--------- Age -----------
     
-    if(!isDead[li]  ){
+    if(fadeOutSpeed > 0 && !isDead[li]  ){
         __global Particle *p = &particles[i];
         ushort2 pos;
         pos.x = p->pos.x*1000.0;
@@ -261,10 +261,10 @@ kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveB
     float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
     
     
-    int count = pixel.x * 1000.0*COUNT_MULT;
+    uint count = pixel.x * COUNT_MULT * 10.0;
     if(stickyBuffer[id] > count){
-        float newVal = fadeInSpeed*(stickyBuffer[id]);
-       passiveBuffer[id] = (newVal);//+= fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
+      // passiveBuffer[id] += 0.1*fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
+        passiveBuffer[id] += fadeInSpeed * stickyBuffer[id];
     }
 }
 
@@ -545,7 +545,7 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
     }
 }
 
-
+/*
 kernel void rectAdd(global PassiveType * passiveBuffer, const float4 rect, const float numAdd){
     int bufferId = get_global_id(1)*get_global_size(0) + get_global_id(0);
     
@@ -556,8 +556,8 @@ kernel void rectAdd(global PassiveType * passiveBuffer, const float4 rect, const
     {
         passiveBuffer[bufferId] += numAdd;
     }
-    
-}
+ 
+}*/
 
 //------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------
@@ -1068,7 +1068,7 @@ kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * force
 
 
 //######################################################
-//  Passive Kernels
+//  Passive Kernels 
 //######################################################
 
 kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, global unsigned int * inactiveBuffer, global unsigned int * activeBuffer, global unsigned int * countCreateBuffer, global int * forceField, const float passiveMultiplier, const float minForce){

@@ -143,7 +143,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"fluidsVisc"] setMaxValue:0.0005];
     [[self addPropF:@"fluidsRadius"] setMaxValue:1.0];
 
-    [[self addPropF:@"trackerDilate"] setMaxValue:10];
+    [[self addPropF:@"trackerDilate"] setMaxValue:40];
     [[self addPropF:@"trackerSubtract"] setMaxValue:10];
     [[self addPropF:@"trackerMultiplier"] setMaxValue:10];
 
@@ -780,14 +780,14 @@ static dispatch_once_t onceToken;
                           }
                       }
                       
-                      if(rectAdd){
+                     /* if(rectAdd){
                           cl_float4 rect;
                           rect.s[0] = rectAddX;
                           rect.s[1] = rectAddY;
                           rect.s[2] = rectAddWidth;
                           rect.s[3] = rectAddHeight;
                           rectAdd_kernel(&ndrangeTex, countPassiveBuffer_gpu, rect, rectAdd);
-                      }
+                      }*/
                       
                       if(opticalFlow){
                           cl_ndrange ndrangeOptical = {
@@ -853,7 +853,9 @@ static dispatch_once_t onceToken;
                       }
                       
                       
+                      if(particleFadeInSpeed){
                       fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed);
+                      }
                      // NSLog(@"%f",particleFadeInSpeed);
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
