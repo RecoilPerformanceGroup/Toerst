@@ -15,6 +15,7 @@ typedef struct{
     float alpha;
     bool inactive;
     int layer;
+    ushort2 origin;
     //    float2 dummy;
     
 } Particle;
@@ -80,7 +81,8 @@ __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_T
 bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const float fadeInSpeed){
     p->age ++;
     
-    p->alpha =  smoothstep(0,1,p->age * fadeInSpeed) - smoothstep(0,1,p->age * fadeOutSpeed);
+    p->alpha =  /*smoothstep(0,1,p->age * fadeInSpeed) -*/ smoothstep(1,0,p->age * fadeOutSpeed);
+//    if(p->alpha
     
     if(p->alpha <= 0){
         return true;
@@ -129,16 +131,23 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
     
     //--------- Age -----------
     
-    /* if(!isDead[li]  ){
-     //if(!p->dead){
-     bool kill = particleAgeUpdate(p, fadeOutSpeed, fadeInSpeed);
-     if(kill){
-     
-     p->dead = true;
-     isDead[li] = true;
-     isModified[byteNum] = true;
-     }
-     }*/
+    if(!isDead[li]  ){
+        __global Particle *p = &particles[i];
+        ushort2 pos;
+        pos.x = p->pos.x*1000.0;
+        pos.y = p->pos.y*1000.0;
+        
+        if(pos.x != p->origin.x || pos.y != p->origin.y){
+            
+            //if(!p->dead){
+            bool kill = particleAgeUpdate(p, fadeOutSpeed, fadeInSpeed);
+            if(kill){
+                p->dead = true;
+                isDead[li] = true;
+                isModified[byteNum] = true;
+            }
+        }
+    }
     
     //-------  Position --------
     if(!isDead[li]){
@@ -245,6 +254,21 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
 }
 
 
+kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed){
+    int id = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    
+    int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
+    float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
+    
+    
+    int count = pixel.x * 1000.0*COUNT_MULT;
+    if(stickyBuffer[id] > count){
+        float newVal = fadeInSpeed*(stickyBuffer[id]);
+       passiveBuffer[id] = (newVal);//+= fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
+    }
+}
+
+
 
 
 kernel void addParticles(global Particle * particles, global unsigned int * isDeadBuffer, global unsigned int * countCreateBuffer, const int textureWidth, const int offset, const int numParticles, global unsigned int * countActiveBuffer){
@@ -286,6 +310,8 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
                     
                     p->pos.x =  (global_id % textureWidth) / 1024.0f;
                     p->pos.y = ((global_id - (global_id % textureWidth))/textureWidth) / 1024.0f;
+                    p->origin.x = p->pos.x*1000.0;
+                    p->origin.y = p->pos.y*1000.0;
                     
                     p->alpha = 1.0;
                     

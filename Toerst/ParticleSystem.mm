@@ -78,7 +78,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropF:@"particleDamp"];
     [self addPropF:@"particleMinSpeed"];
     [self addPropF:@"particleFadeOutSpeed"];
-    [[self addPropF:@"particleFadeInSpeed"] setMaxValue:1000.0];
+    [[self addPropF:@"particleFadeInSpeed"] setMaxValue:1];
     [[self addPropF:@"densityForce"] setMaxValue:0.05];
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
@@ -144,6 +144,8 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"fluidsRadius"] setMaxValue:1.0];
 
     [[self addPropF:@"trackerDilate"] setMaxValue:10];
+    [[self addPropF:@"trackerSubtract"] setMaxValue:10];
+    [[self addPropF:@"trackerMultiplier"] setMaxValue:10];
 
 }
 
@@ -327,7 +329,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
             unsigned char * pixelsDst = (unsigned char*)malloc(sizeof(unsigned char)*TEXTURE_RES*TEXTURE_RES);
             
             for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
-                pixelsDst[i] = image.getPixelsRef()[i];
+                pixelsDst[i] = image.getPixelsRef()[i*4];
             }
             
             dispatch_async(queue,
@@ -577,7 +579,7 @@ static dispatch_once_t onceToken;
                       int minX, maxX, minY, maxY;
                       minX = maxX = minY = maxY = -1;
                       
-                      if([tracker numberTrackers] >  0){
+                      //if([tracker numberTrackers] >  0){
                           cl_timer bodyTimer = gcl_start_timer();
                           
                           int _minX, _maxX, _minY, _maxY;
@@ -592,14 +594,17 @@ static dispatch_once_t onceToken;
 /*                          for(int d=0;d<PropI(@"trackerDilate");d++){
                               trackerImage.dilate();
                           }*/
+                      
+                      CachePropI(trackerSubtract);
+                      CachePropF(trackerMultiplier);
                           for(int i=0;i<w*w;i++){
                               int x = i%w;
                               int y = floor((float)i / w);
                               
                               
                               unsigned char pixel = trackerImage.getPixels()[i];
-                              if(pixel){
-                                  bodyFieldData[i*3] = pixel;
+                              if(pixel > trackerSubtract){
+                                  bodyFieldData[i*3] = (pixel-trackerSubtract)*trackerMultiplier;
                                   if(x < minX || minX == -1)
                                       minX = x;
                                   if(x > maxX || maxX == -1)
@@ -613,11 +618,6 @@ static dispatch_once_t onceToken;
                           }
                           
                           CachePropI(trackerDilate);
-
-                          minX = MAX(0, minX - trackerDilate);
-                          minY = MAX(0, minY - trackerDilate);
-                          maxX = MIN(w, maxX + trackerDilate);
-                          maxY = MIN(w, maxY + trackerDilate);
 
                           
                           
@@ -750,7 +750,7 @@ static dispatch_once_t onceToken;
                               
                           }
                           
-                      }
+                     // }
                       
                       //------------------
                       // Forces
@@ -852,6 +852,9 @@ static dispatch_once_t onceToken;
                           activateAllPassiveParticles_kernel(&ndrangeTex, countPassiveBuffer_gpu, countCreateParticleBuffer_gpu, PropF(@"passiveMultiplier"));
                       }
                       
+                      
+                      fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed);
+                     // NSLog(@"%f",particleFadeInSpeed);
                       double passiveTime = gcl_stop_timer(passiveTimer);
                       //###################################
                       
