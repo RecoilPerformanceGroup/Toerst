@@ -14,7 +14,7 @@
 #import "Shader.h"
 #import "MSAFluid.h"
 
-#define BodyDivider 2
+#define BodyDivider 4
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
@@ -49,7 +49,7 @@
     PassiveType     *countPassiveBuffer_gpu;
     cl_uint         *countCreateParticleBuffer_gpu;
 
-    BodyType        *bodyField_gpu[2];
+    BodyType        *bodyField_gpu[1];
     cl_int          *bodyBlob_gpu;
     cl_int          *forceField_gpu;
     cl_int          *forceCacheBlur_gpu;

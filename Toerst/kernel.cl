@@ -1,7 +1,12 @@
 
 #define BodyType short
 #define PassiveType uint
-#define BodyDivider 2
+#define BodyDivider 4
+
+#define COUNT_MULT 100.0f
+#define FORCE_CACHE_MULT 1000.f
+#define COUNT_CREATE_BUFFER_MULT 100.0f
+
 
 
 typedef struct{
@@ -27,10 +32,6 @@ typedef struct {
     int deadParticles;
     int deadParticlesBit;
 } ParticleCounter;
-
-#define COUNT_MULT 100.0f
-#define FORCE_CACHE_MULT 1000.f
-#define COUNT_CREATE_BUFFER_MULT 100.0f
 
 
 int getTexIndex(float2 pos, int textureWidth){
@@ -236,7 +237,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
                 isDead[li] = true;
                 isModified[byteNum] = true;
             }
-        } else if(!p->inactive && p->alpha == 1 && p->age > 10){
+        } else if(!p->inactive && p->age > 10 && fadeOutSpeed == 0){
             p->inactive = true;
         }
     }
@@ -599,7 +600,6 @@ kernel void sumParticleForces(global Particle * particles, global int * forceFie
     
     int id = get_global_id(0);
     
-    if(forceFieldParticleInfluence > 0){
         global Particle *p = &particles[id];
         if(!p->dead && !p->inactive){
             int texIndex  = getTexIndex(p->pos, textureWidth);
@@ -610,7 +610,6 @@ kernel void sumParticleForces(global Particle * particles, global int * forceFie
                 atomic_add(&forceField[texIndex*2+1], p->vel.y*FORCE_CACHE_MULT*forceFieldParticleInfluence);
             }
         }
-    }
     
     
     
@@ -706,180 +705,6 @@ kernel void updateForceTexture(write_only image2d_t image, global int * forceFie
 //  Body Kernels
 //######################################################
 
-kernel void updateBodyFieldStep1(global BodyType * bodyField, global int * bodyBlob, const int numBlobPoints){
-    
-    int x = get_global_id(0)*BodyDivider;
-    int y = get_global_id(1)*BodyDivider;
-    
-    int id = get_global_id(1) * 1024/BodyDivider +  get_global_id(0);
-    
-    if(pointInPolygon(numBlobPoints, bodyBlob, (int2)(x,y))){
-        bodyField[id*3] = -1;
-        
-        /*bodyField[id*3] = 10;
-         
-         bodyField[id*3+1] = 10000;*/
-        
-        
-    } else {
-        //        bodyField[id*3] = -2;
-    }
-    
-    for(int i=0;i<numBlobPoints;i++){
-        if(bodyBlob[i*2]/BodyDivider == x/BodyDivider && bodyBlob[i*2+1]/BodyDivider == y/BodyDivider ){
-            bodyField[id*3] = 1;
-            break;
-        }
-    }
-    
-    
-    //   bodyField[id*3] = 100;
-}
-
-
-/*
-kernel void updateBodyFieldStep2(read_only global BodyType * bodyFieldR, write_only global BodyType * bodyFieldW, const int step, local int * bodyFieldCache){
-    int x = get_global_id(0)*BodyDivider;
-    int y = get_global_id(1)*BodyDivider;
-    
-    int id = get_global_id(1) * 1024/BodyDivider +  get_global_id(0);
-    int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
-    
-    
-    bodyFieldW[id*3] = bodyFieldR[id*3];
-    bodyFieldW[id*3+1] = bodyFieldR[id*3+1];
-    bodyFieldW[id*3+2] = bodyFieldR[id*3+2];
-    
-    bodyFieldCache[lid] = bodyFieldR[id*3];
-    
-    barrier(CLK_LOCAL_MEM_FENCE);
-    
-    if(bodyFieldR[id*3] == -1){
-        if(x > 0 && x < 1024-1 && y > 0 && y < 1024-1){
-            bool edge = false;
-            bool outerEdge = false;
-            float2 dir = (float2)(0,0);
-            
-            int w;
-            if(get_local_id(0) > 0){
-                w = bodyFieldCache[lid-1];
-            } else {
-                w = bodyFieldR[(id-1)*3];
-            }
-            if(w > 0){
-                edge = true;
-                dir += (float2)(-10,0);
-            } else if(w == -2){
-                outerEdge = true;
-            }
-            
-            
-            int e;
-            if(get_local_id(0) < get_local_size(0)-1){
-                e = bodyFieldCache[lid+1];
-            } else {
-                e = bodyFieldR[(id+1)*3];
-            }
-            if(e > 0){
-                edge = true;
-                dir += (float2)(10,0);
-            } else if(e == -2){
-                outerEdge = true;
-            }
-            
-            int n;
-            if(get_local_id(1) > 0){
-                n = bodyFieldCache[lid-get_local_size(0)];
-            } else {
-                n = bodyFieldR[(id-1024/BodyDivider)*3];
-            }
-            if(n > 0){
-                edge = true;
-                dir += (float2)(0,-10);
-            } else if(n == -2){
-                outerEdge = true;
-            }
-            
-            int s;
-            if(get_local_id(1) < get_local_size(1)-1){
-                s = bodyFieldCache[lid+get_local_size(0)];
-            } else {
-                s = bodyFieldR[(id+1024/BodyDivider)*3];
-            }
-            if(s > 0){
-                edge = true;
-                dir += (float2)(0,10);
-            } else if(s == -2){
-                outerEdge = true;
-            }
-            
-            
-            int nw;
-            if(get_local_id(0) > 0 && get_local_id(1) > 0){
-                nw = bodyFieldCache[lid-get_local_size(0)-1];
-            } else {
-                nw = bodyFieldR[(id-1024/BodyDivider-1)*3];
-            }
-            if(nw > 0){
-                edge = true;
-                dir += (float2)(-7,-7);
-            }
-            
-            int ne;
-            if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) > 0){
-                ne = bodyFieldCache[lid-get_local_size(0)+1];
-            } else {
-                ne = bodyFieldR[(id-1024/BodyDivider+1)*3];
-            }
-            if(ne > 0){
-                edge = true;
-                dir += (float2)(7,-7);
-            }
-            
-            int se;
-            if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) < get_local_size(1)-1){
-                se = bodyFieldCache[lid+get_local_size(0)+1];
-            } else {
-                se = bodyFieldR[(id+1024/BodyDivider+1)*3];
-            }
-            if(se > 0){
-                edge = true;
-                dir += (float2)(7,7);
-            }
-            
-            int sw;
-            if(get_local_id(0) > 0 && get_local_id(1) < get_local_size(1)-1){
-                sw = bodyFieldCache[lid+get_local_size(0)-1];
-            } else {
-                sw = bodyFieldR[(id+1024/BodyDivider-1)*3];
-            }
-            if(sw > 0){
-                edge = true;
-                dir += (float2)(-7,7);
-            }
-            
-            if(outerEdge){
-                bodyFieldW[id*3] = 1;
-                bodyFieldW[id*3+1] = 0;
-                bodyFieldW[id*3+2] = 0;
-                
-                
-                
-            } else if(edge){
-                bodyFieldW[id*3] = step+2;
-                
-                dir = fast_normalize(dir);
-                if(dir.x == 0 && dir.y == 0){
-                    dir = (float2)(1,0);
-                }
-                
-                bodyFieldW[id*3+1] = dir.x*1000.0;
-                bodyFieldW[id*3+2] = dir.y*1000.0;
-            }
-        }
-        // bodyFieldW[id*3+1] = lid*1000;
-    }
-}*/
 
 kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * bodyFieldCache){
     int x = get_global_id(0)*BodyDivider;
@@ -889,11 +714,11 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
     int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
     
     
-    bodyFieldCache[lid] = bodyField[id*3];
+    bodyFieldCache[lid] = bodyField[id];
     
     barrier(CLK_LOCAL_MEM_FENCE);
     
-    int t = bodyField[id*3];
+    int t = bodyFieldCache[lid];
     if(t > 0){
         if(x > 0 && x < 1024-1 && y > 0 && y < 1024-1){
             bool edge = false;
@@ -904,7 +729,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) > 0){
                 w = bodyFieldCache[lid-1];
             } else {
-                w = bodyField[(id-1)*3];
+                w = bodyField[(id-1)];
             }
             if(w < t){
                 edge = true;
@@ -918,7 +743,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) < get_local_size(0)-1){
                 e = bodyFieldCache[lid+1];
             } else {
-                e = bodyField[(id+1)*3];
+                e = bodyField[(id+1)];
             }
             if(e < y){
                 edge = true;
@@ -931,7 +756,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(1) > 0){
                 n = bodyFieldCache[lid-get_local_size(0)];
             } else {
-                n = bodyField[(id-1024/BodyDivider)*3];
+                n = bodyField[(id-1024/BodyDivider)];
             }
             if(n < t){
                 edge = true;
@@ -944,7 +769,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(1) < get_local_size(1)-1){
                 s = bodyFieldCache[lid+get_local_size(0)];
             } else {
-                s = bodyField[(id+1024/BodyDivider)*3];
+                s = bodyField[(id+1024/BodyDivider)];
             }
             if(s < t){
                 edge = true;
@@ -958,7 +783,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) > 0 && get_local_id(1) > 0){
                 nw = bodyFieldCache[lid-get_local_size(0)-1];
             } else {
-                nw = bodyField[(id-1024/BodyDivider-1)*3];
+                nw = bodyField[(id-1024/BodyDivider-1)];
             }
             if(nw < t){
                 edge = true;
@@ -969,7 +794,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) > 0){
                 ne = bodyFieldCache[lid-get_local_size(0)+1];
             } else {
-                ne = bodyField[(id-1024/BodyDivider+1)*3];
+                ne = bodyField[(id-1024/BodyDivider+1)];
             }
             if(ne < t){
                 edge = true;
@@ -980,7 +805,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) < get_local_size(0)-1 && get_local_id(1) < get_local_size(1)-1){
                 se = bodyFieldCache[lid+get_local_size(0)+1];
             } else {
-                se = bodyField[(id+1024/BodyDivider+1)*3];
+                se = bodyField[(id+1024/BodyDivider+1)];
             }
             if(se < t){
                 edge = true;
@@ -991,7 +816,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
             if(get_local_id(0) > 0 && get_local_id(1) < get_local_size(1)-1){
                 sw = bodyFieldCache[lid+get_local_size(0)-1];
             } else {
-                sw = bodyField[(id+1024/BodyDivider-1)*3];
+                sw = bodyField[(id+1024/BodyDivider-1)];
             }
             if(sw < t){
                 edge = true;
@@ -1012,8 +837,10 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
                     dir = (float2)(1,0);
                 }
                 
-                bodyField[id*3+1] = dir.x*1000.0;
-                bodyField[id*3+2] = dir.y*1000.0;
+                int size = get_global_size(0)*get_global_size(1);
+                
+                bodyField[id+size] = dir.x*1000.0;
+                bodyField[id+2*size] = dir.y*1000.0;
             }
         }
         // bodyFieldW[id*3+1] = lid*1000;
@@ -1026,17 +853,18 @@ kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * force
     int padding = 1024/BodyDivider;
     int id = y * padding + x;
     
-    int _ia = id*3;
-    int _ib = (id+1)*3;
-    int _ic = (id+padding+1)*3;
-    int _id = (id+padding)*3;
+    int _ia = id;
+    int _ib = (id+1);
+    int _ic = (id+padding+1);
+    int _id = (id+padding);
+    
+    int size = get_global_size(0) * get_global_size(1);
     
     
-    
-    float3 a = (float3)(bodyField[_ia],bodyField[_ia+1], bodyField[_ia+2]);
-    float3 b = (float3)(bodyField[_ib],bodyField[_ib+1], bodyField[_ib+2]);
-    float3 c = (float3)(bodyField[_ic],bodyField[_ic+1], bodyField[_ic+2]);
-    float3 d = (float3)(bodyField[_id],bodyField[_id+1], bodyField[_id+2]);
+    float3 a = (float3)(bodyField[_ia],bodyField[_ia+size], bodyField[_ia+size*2]);
+    float3 b = (float3)(bodyField[_ib],bodyField[_ib+size], bodyField[_ib+size*2]);
+    float3 c = (float3)(bodyField[_ic],bodyField[_ic+size], bodyField[_ic+size*2]);
+    float3 d = (float3)(bodyField[_id],bodyField[_id+size], bodyField[_id+size*2]);
     
     
     float w = BodyDivider;
