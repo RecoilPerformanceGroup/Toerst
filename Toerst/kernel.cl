@@ -5,7 +5,6 @@
 
 #define COUNT_MULT 100.0f
 #define FORCE_CACHE_MULT 1000.f
-#define COUNT_CREATE_BUFFER_MULT 100.0f
 
 
 
@@ -82,7 +81,9 @@ __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_T
 bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const float fadeInSpeed){
     p->age ++;
     
-    p->alpha =  /*smoothstep(0,1,p->age * fadeInSpeed) -*/ smoothstep(1,0,p->age * fadeOutSpeed);
+    p->alpha -= fadeOutSpeed;
+    
+   // p->alpha =  /*smoothstep(0,1,p->age * fadeInSpeed) -*/ smoothstep(1,0,p->age * fadeOutSpeed);
 //    if(p->alpha
     
     if(p->alpha <= 0){
@@ -132,7 +133,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
     
     //--------- Age -----------
     
-    if(fadeOutSpeed > 0 && !isDead[li]  ){
+    /*if(fadeOutSpeed > 0 && !isDead[li]  ){
         __global Particle *p = &particles[i];
         ushort2 pos;
         pos.x = p->pos.x*1000.0;
@@ -148,7 +149,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
                 isModified[byteNum] = true;
             }
         }
-    }
+    }*/
     
     //-------  Position --------
     if(!isDead[li]){
@@ -165,7 +166,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         }
         
         
-        
+        /*
         float sticky = (float)stickyBuffer[texIndex];
         sticky /= 256.0f;
         
@@ -175,22 +176,21 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         } else {
             sticky = 1;
         }
-        
+        */
         /*        p->vel += p->f * p->mass *  sticky;
          */
         
         
-        p->vel += p->f * p->mass ;//* layer * sticky;
+        p->vel += p->f * p->mass;//* layer * sticky;
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
-            p->vel  = (float2)(0,0);
+            p->vel = (float2)(0,0);
         } else {
             p->f = (float2)(0,0);
         }
         
         if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
-            
             //Make sure its not inactive
             if(p->inactive){
                 p->inactive = false;
@@ -237,7 +237,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
                 isDead[li] = true;
                 isModified[byteNum] = true;
             }
-        } else if(!p->inactive && p->age > 10 && fadeOutSpeed == 0){
+        } else if(!p->inactive && p->age > 10){
             p->inactive = true;
         }
     }
@@ -255,17 +255,52 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
 }
 
 
-kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed){
+kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed, const float fadeOutSpeed){
     int id = get_global_id(1)*get_global_size(0) + get_global_id(0);
     
-    int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
-    float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
-    
-    
-    uint count = pixel.x * COUNT_MULT * 10.0;
-    if(stickyBuffer[id] > count){
-      // passiveBuffer[id] += 0.1*fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
-        passiveBuffer[id] += fadeInSpeed * stickyBuffer[id];
+    if(get_global_id(1) > 0 && get_global_id(1) < get_global_size(0)-1 && get_global_id(0) > 0 && get_global_id(0) < get_global_size(0)-1){
+        
+        int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
+        float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
+        
+        
+        uint count = pixel.x * COUNT_MULT*1.0/passiveMultiplier;
+        if(stickyBuffer[id] > count){
+            // passiveBuffer[id] += 0.1*fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
+            
+            
+            float4 otherPixels[4];
+            otherPixels[0] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(-1,0));
+            otherPixels[1] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(1,0));
+            otherPixels[2] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,-1));
+            otherPixels[3] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,1));
+            
+            float  otherSticky[4];
+            otherSticky[0] = stickyBuffer[id-1];
+            otherSticky[1] = stickyBuffer[id+1];
+            otherSticky[2] = stickyBuffer[id+get_global_size(0)];
+            otherSticky[3] = stickyBuffer[id-get_global_size(0)];
+            
+            
+            float diffs[4];
+            for(int i=0;i<4;i++){
+                diffs[i] = (otherPixels[i].x * COUNT_MULT*1.0/passiveMultiplier)/otherSticky[i];
+            }
+            
+            float _max = max(diffs[0], diffs[1]);
+            _max = max(_max, diffs[2]);
+            _max = max(_max, diffs[3]);
+
+            _max += 0.05;
+            
+           /* if(_max <= 0){
+                passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0;
+            } else {*/
+                passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0 * (_max);
+//            }
+        } else if(stickyBuffer[id] < count && passiveBuffer[id] > 0){
+            passiveBuffer[id] -= (count-stickyBuffer[id])*fadeOutSpeed*1000.0;
+        }
     }
 }
 
@@ -285,9 +320,9 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
     private bool isDead[32];
     
     
-    int numberToAdd = countCreateBuffer[global_id]/COUNT_CREATE_BUFFER_MULT;
+    float numberToAdd = (float)countCreateBuffer[global_id]/1000.0;
     
-    if(numberToAdd > 0){
+    if(numberToAdd > 0.1){
         
         unsigned int bufferId = (offset*32  + groupId * get_local_size(0) + lid) % (numParticles/32);
         private unsigned int isDeadBufferRead = isDeadBuffer[bufferId];
@@ -308,13 +343,18 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
                     p->inactive = false;
                     p->vel = (float2)(0);
                     p->age = 0;
+                    p->alpha = 1.0;
+
+                    if(numberToAdd < 1){
+                        p->alpha = numberToAdd;
+                        numberToAdd = 1;
+                    }
                     
                     p->pos.x =  (global_id % textureWidth) / 1024.0f;
                     p->pos.y = ((global_id - (global_id % textureWidth))/textureWidth) / 1024.0f;
                     p->origin.x = p->pos.x*1000.0;
                     p->origin.y = p->pos.y*1000.0;
                     
-                    p->alpha = 1.0;
                     
                     int texIndex = getTexIndex(p->pos, textureWidth);
                     atomic_add(&countActiveBuffer[texIndex], 1000.0*p->alpha);
@@ -335,7 +375,7 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
             isDeadBuffer[bufferId] = store;
         }
         
-        countCreateBuffer[global_id] = numberToAdd*COUNT_CREATE_BUFFER_MULT;
+        countCreateBuffer[global_id] = numberToAdd*1000.0;
     }
 }
 
@@ -580,7 +620,8 @@ kernel void sumParticleActivity(read_only global Particle * particles, write_onl
         int texIndex = getTexIndex(p->pos, textureWidth);
         if(texIndex > 0 && texIndex < textureWidth*textureWidth){
             if(p->inactive){
-                p->layer = atomic_inc(&countInactiveBuffer[texIndex]);
+              //  p->layer = atomic_inc(&countInactiveBuffer[texIndex]);
+                p->layer = atomic_add(&countInactiveBuffer[texIndex], 1000.0*p->alpha)/1000.0;
                 
                 //inactive ++;
             } else {
@@ -713,7 +754,6 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
     int id = get_global_id(1) * 1024/BodyDivider +  get_global_id(0);
     int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
     
-    
     bodyFieldCache[lid] = bodyField[id];
     
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -837,7 +877,7 @@ kernel void updateBodyFieldStepDir(global BodyType * bodyField, local int * body
                     dir = (float2)(1,0);
                 }
                 
-                int size = get_global_size(0)*get_global_size(1);
+                int size = (1024/BodyDivider) * (1024/BodyDivider);
                 
                 bodyField[id+size] = dir.x*1000.0;
                 bodyField[id+2*size] = dir.y*1000.0;
@@ -858,7 +898,7 @@ kernel void updateBodyFieldStep3(global BodyType * bodyField, global int * force
     int _ic = (id+padding+1);
     int _id = (id+padding);
     
-    int size = get_global_size(0) * get_global_size(1);
+    int size = (1024/BodyDivider) * (1024/BodyDivider);
     
     
     float3 a = (float3)(bodyField[_ia],bodyField[_ia+size], bodyField[_ia+size*2]);
@@ -926,7 +966,7 @@ kernel void passiveParticlesBufferUpdate(global PassiveType * passiveBuffer, glo
     
     
     if(createAllPassiveParticles){
-        countCreateBuffer[id] += COUNT_CREATE_BUFFER_MULT*passiveBuffer[id]*passiveMultiplier;
+        countCreateBuffer[id] += passiveBuffer[id]*passiveMultiplier;
         passiveBuffer[id] = 0;
     }
 }
@@ -936,7 +976,7 @@ kernel void activateAllPassiveParticles(global PassiveType * passiveBuffer,  glo
     int id = get_global_id(1) * get_global_size(0) +  get_global_id(0);
     
     
-    countCreateBuffer[id] += COUNT_CREATE_BUFFER_MULT*passiveBuffer[id]*passiveMultiplier;
+    countCreateBuffer[id] += passiveBuffer[id]*passiveMultiplier;
     passiveBuffer[id] = 0;
     
 }
@@ -1007,7 +1047,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id]*1000.0 +passiveBuffer[global_id]*1000.0*passiveMultiplier;// + bodyField[body_global_id*3]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id] +passiveBuffer[global_id]*passiveMultiplier;// + bodyField[body_global_id*3]*1000.0;
     
     
     //--------
@@ -1026,28 +1066,28 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     if(lidx != 0){
         diff[0] = count - particleCountSum[tid-1];
     } else if(idx > 0) {
-        diff[0] = count - (countActiveBuffer[global_id-1]+ countInactiveBuffer[global_id-1]*1000 + passiveBuffer[global_id-1]*1000.0*passiveMultiplier);
+        diff[0] = count - (countActiveBuffer[global_id-1]+ countInactiveBuffer[global_id-1] + passiveBuffer[global_id-1]*passiveMultiplier);
     }
     
     diff[1] = 0;
     if(lidx != get_local_size(0)-1){
         diff[1] = count - particleCountSum[tid+1];
     } else if(idx < width-1){
-        diff[1] = count - (countActiveBuffer[global_id+1]+ countInactiveBuffer[global_id+1]*1000 + passiveBuffer[global_id+1]*1000.0*passiveMultiplier);
+        diff[1] = count - (countActiveBuffer[global_id+1]+ countInactiveBuffer[global_id+1] + passiveBuffer[global_id+1]*passiveMultiplier);
     }
     
     diff[2] = 0;
     if(lidy != 0){
         diff[2] = count - particleCountSum[tid-get_local_size(0)];
     } else if(global_id-width > 0){
-        diff[2] = count - (countActiveBuffer[global_id-width]+ countInactiveBuffer[global_id-width]*1000 + passiveBuffer[global_id-width]*1000.0*passiveMultiplier);
+        diff[2] = count - (countActiveBuffer[global_id-width]+ countInactiveBuffer[global_id-width] + passiveBuffer[global_id-width]*passiveMultiplier);
     }
     
     diff[3] = 0;
     if(lidy != get_local_size(1)-1){
         diff[3] = count - particleCountSum[tid+get_local_size(0)];
     } else  if(idy < width-1){
-        diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width]*1000 + passiveBuffer[global_id+width]*1000.0*passiveMultiplier);
+        diff[3] = count - (countActiveBuffer[global_id+width]+ countInactiveBuffer[global_id+width] + passiveBuffer[global_id+width]*passiveMultiplier);
     }
     
     

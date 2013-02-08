@@ -319,12 +319,13 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self loadShader];
     
     
+
     
     
     {
         ofImage image;
         image.setUseTexture(false);
-        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/sticky.png");
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
         NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
         
         if(loaded){
@@ -476,10 +477,11 @@ static dispatch_once_t onceToken;
         if(trackerMinX != -1 && trackerMinY != -1){
             dispatch_async(queue,
                            ^{
-                               gcl_memcpy(bodyField_gpu[0]+trackerMinI, bodyFieldData, sizeof(BodyType)*(trackerMaxI-trackerMinI));
+                               gcl_memcpy(bodyField_gpu[0]+trackerMinI, bodyFieldData+trackerMinI, sizeof(BodyType)*(trackerMaxI-trackerMinI));
                            });
         }
     }
+    
     
     // StopTimer();
     
@@ -501,12 +503,14 @@ static dispatch_once_t onceToken;
         if(loaded){
             unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
             for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
-                pixelsDst[i] = image.getPixelsRef()[i*4];
+                pixelsDst[i] = image.getPixelsRef()[i*4]*1000.0;
             }
             
             dispatch_async(queue,
                            ^{
                                gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
+                               
+                               
                                delete pixelsDst;
                            });
         }
@@ -766,8 +770,8 @@ static dispatch_once_t onceToken;
                       }
                       
                       
-                      if(particleFadeInSpeed){
-                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed);
+                      if(particleFadeInSpeed || particleFadeOutSpeed){
+                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed*0.01, particleFadeOutSpeed*0.01);
                       }
                       // NSLog(@"%f",particleFadeInSpeed);
                       double passiveTime = gcl_stop_timer(passiveTimer);
