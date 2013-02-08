@@ -237,7 +237,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
                 isDead[li] = true;
                 isModified[byteNum] = true;
             }
-        } else if(!p->inactive && p->age > 10){
+        } else if(!p->inactive /*&& p->age > 10*/){
             p->inactive = true;
         }
     }
@@ -255,51 +255,53 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
 }
 
 
-kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed, const float fadeOutSpeed){
+kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, read_only global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed, const float fadeOutSpeed, global unsigned int * activeBuffer, global unsigned int * inactiveBuffer){
+    
     int id = get_global_id(1)*get_global_size(0) + get_global_id(0);
     
     if(get_global_id(1) > 0 && get_global_id(1) < get_global_size(0)-1 && get_global_id(0) > 0 && get_global_id(0) < get_global_size(0)-1){
         
-        int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
-        float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
-        
-        
-        uint count = pixel.x * COUNT_MULT*1.0/passiveMultiplier;
-        if(stickyBuffer[id] > count){
-            // passiveBuffer[id] += 0.1*fadeInSpeed*(stickyBuffer[id]-passiveBuffer[id]);
+        if(activeBuffer[id] == 0 && inactiveBuffer[id] == 0 && stickyBuffer[id] > 0){
+            int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
             
+            float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
+            uint count = pixel.x * COUNT_MULT*1.0/passiveMultiplier;
             
-            float4 otherPixels[4];
-            otherPixels[0] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(-1,0));
-            otherPixels[1] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(1,0));
-            otherPixels[2] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,-1));
-            otherPixels[3] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,1));
-            
-            float  otherSticky[4];
-            otherSticky[0] = stickyBuffer[id-1];
-            otherSticky[1] = stickyBuffer[id+1];
-            otherSticky[2] = stickyBuffer[id+get_global_size(0)];
-            otherSticky[3] = stickyBuffer[id-get_global_size(0)];
-            
-            
-            float diffs[4];
-            for(int i=0;i<4;i++){
-                diffs[i] = (otherPixels[i].x * COUNT_MULT*1.0/passiveMultiplier)/otherSticky[i];
-            }
-            
-            float _max = max(diffs[0], diffs[1]);
-            _max = max(_max, diffs[2]);
-            _max = max(_max, diffs[3]);
-
-            _max += 0.05;
-            
-           /* if(_max <= 0){
-                passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0;
-            } else {*/
+            if(stickyBuffer[id] > count){
+                
+                float4 otherPixels[4];
+                otherPixels[0] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(-1,0));
+                otherPixels[1] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(1,0));
+                otherPixels[2] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,-1));
+                otherPixels[3] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,1));
+                
+                float  otherSticky[4];
+                otherSticky[0] = stickyBuffer[id-1];
+                 otherSticky[1] = stickyBuffer[id+1];
+                 otherSticky[2] = stickyBuffer[id-get_global_size(0)];
+                 otherSticky[3] = stickyBuffer[id+get_global_size(0)];
+                 
+                
+                float diffs[4];
+                for(int i=0;i<1;i++){
+                    diffs[i] = (otherPixels[i].x * COUNT_MULT*1.0/passiveMultiplier)/otherSticky[i];
+                }
+                
+                //float _max = diffs[0];
+                float _max = max(diffs[0], diffs[1]);
+                _max = max(_max, diffs[2]);
+                _max = max(_max, diffs[3]);
+                
+                _max += 0.05;
+                
+                /* if(_max <= 0){
+                 passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0;
+                 } else {*/
                 passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0 * (_max);
-//            }
-        } else if(stickyBuffer[id] < count && passiveBuffer[id] > 0){
-            passiveBuffer[id] -= (count-stickyBuffer[id])*fadeOutSpeed*1000.0;
+                //            }
+            } else if(stickyBuffer[id] < count && passiveBuffer[id] > 0){
+                   passiveBuffer[id] -= (count-stickyBuffer[id])*fadeOutSpeed*1000.0;
+            }
         }
     }
 }

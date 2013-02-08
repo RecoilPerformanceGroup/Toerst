@@ -268,7 +268,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     countPassiveBuffer_gpu  = (PassiveType*) gcl_malloc(sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     countCreateParticleBuffer_gpu = (cl_uint*) gcl_malloc(sizeof(cl_int)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
     
-    stickyBuffer_gpu        = (cl_uchar*) gcl_malloc(sizeof(cl_uchar)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_WRITE );
+    stickyBuffer_gpu        = (cl_uchar*) gcl_malloc(sizeof(cl_uchar)*TEXTURE_RES*TEXTURE_RES,  nil, CL_MEM_READ_ONLY );
     
     bodyBlob_gpu            = (cl_int*) gcl_malloc(sizeof(cl_int)*NUM_BLOB_POINTS*2,  nil, CL_MEM_READ_ONLY );
     
@@ -325,14 +325,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     {
         ofImage image;
         image.setUseTexture(false);
-        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.jpg");
         NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
         
         if(loaded){
             unsigned char * pixelsDst = (unsigned char*)malloc(sizeof(unsigned char)*TEXTURE_RES*TEXTURE_RES);
             
             for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
-                pixelsDst[i] = image.getPixelsRef()[i*4];
+                pixelsDst[i] = MAX(1,image.getPixelsRef()[i]);
             }
             
             dispatch_async(queue,
@@ -474,7 +474,16 @@ static dispatch_once_t onceToken;
             }
         }
         
+        
         if(trackerMinX != -1 && trackerMinY != -1){
+            trackerMinX = floor((trackerMinX) / 32.0f)*32.0f;
+            trackerMinY = floor((float)(trackerMinY) / 32.0f)*32.0f;
+            
+            trackerMaxX = ceil((trackerMaxX) / 32.0f)*32.0f;
+            trackerMaxY = ceil((trackerMaxY) / 32.0f)*32.0f;
+            
+           // NSLog(@"%i %i  (%i, %i) (%i, %i)", trackerMinI,trackerMaxI, trackerMinX, trackerMinY, trackerMaxX, trackerMaxY);
+
             dispatch_async(queue,
                            ^{
                                gcl_memcpy(bodyField_gpu[0]+trackerMinI, bodyFieldData+trackerMinI, sizeof(BodyType)*(trackerMaxI-trackerMinI));
@@ -497,13 +506,13 @@ static dispatch_once_t onceToken;
         
         ofImage image;
         image.setUseTexture(false);
-        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.png");
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.jpg");
         NSLog(@"Loaded image %ix%i %i",image.width,image.height,image.type);
         
         if(loaded){
             unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
             for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
-                pixelsDst[i] = image.getPixelsRef()[i*4]*1000.0;
+                pixelsDst[i] = image.getPixelsRef()[i]*1000.0;
             }
             
             dispatch_async(queue,
@@ -771,7 +780,7 @@ static dispatch_once_t onceToken;
                       
                       
                       if(particleFadeInSpeed || particleFadeOutSpeed){
-                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed*0.01, particleFadeOutSpeed*0.01);
+                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed*0.01, particleFadeOutSpeed*0.01, countActiveBuffer_gpu, countInactiveBuffer_gpu);
                       }
                       // NSLog(@"%f",particleFadeInSpeed);
                       double passiveTime = gcl_stop_timer(passiveTimer);
@@ -797,8 +806,9 @@ static dispatch_once_t onceToken;
                       }
                       
                       //DEBUG
-                      //sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
-                      
+                      if(_debug){
+                      sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
+                      }
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
                       
@@ -891,8 +901,10 @@ static dispatch_once_t onceToken;
                       
                       
                       //DEBUG
-                      //    gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                      //      NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+                      if(_debug){
+                          gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
+                            NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+                      }
                       
                       if(_debug){
                           newDataJumper ++;
