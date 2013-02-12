@@ -65,7 +65,7 @@ void main()
     pos.z= 0.0;
     
     float lightDist = length(globalLightPos -  pos);
-    lightDist = 1.0/lightDist;
+    lightDist = 1.0/(lightDist*lightDist);
     gl_FragColor *= lightDist*globalLightIntensity;
     
     // Curve

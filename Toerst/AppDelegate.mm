@@ -9,6 +9,7 @@
 #import "AppDelegate.h"
 
 #import "ParticleSystem.h"
+#import "Dmx.h"
 //#import
 @implementation AppDelegate
 
@@ -27,6 +28,7 @@
     [ocp addPlugin:[[BlobTracker2d alloc] init]];
     [ocp addPlugin:[[ParticleSystem alloc] init]];
     [ocp addPlugin:[[Tracker alloc] init]];
+    [ocp addPlugin:[[Dmx alloc] init]];
     
     [ocp loadPlugins];
 

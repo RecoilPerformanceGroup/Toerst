@@ -117,7 +117,7 @@ bool particleAgeUpdate(global Particle * p, const float fadeOutSpeed, const floa
 // Update the particles position
 //
 
-kernel void update(global Particle* particles, global unsigned int * isDeadBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, read_only global uchar * stickyBuffer, const float stickyAmount, const float stickyGain)
+kernel void update(global Particle* particles, global unsigned int * isDeadBuffer, const float dt, const float damp, const float minSpeed, const float fadeInSpeed, const float fadeOutSpeed, const int textureWidth, read_only global uchar * stickyBuffer, const float stickyAmount, const float stickyGain, const bool border)
 {
     size_t i = get_global_id(0);
     size_t li = get_local_id(0);
@@ -208,26 +208,30 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             //Boundary check
             bool kill = false;
             if(p->pos.x >= 1){
-                //      kill = true;
-                p->pos.x -= 1;
+                kill = true;
+                if(!border)
+                    p->pos.x -= 1;
             }
             
             if(p->pos.y >= 1){
-                //   kill = true;
-                p->pos.y -= 1;
+                kill = true;
+                if(!border)
+                    p->pos.y -= 1;
             }
             
             if(p->pos.x <= 0){
-                //  kill = true;
-                p->pos.x += 1;
+                kill = true;
+                if(!border)
+                    p->pos.x += 1;
             }
             
             if(p->pos.y <= 0){
-                //   kill = true;
-                p->pos.y += 1;
+                kill = true;
+                if(!border)
+                    p->pos.y += 1;
             }
             
-            if(kill){
+            if(kill && border){
                 /*if(p->inactive){
                  int texIndex = getTexIndex(p->pos, textureWidth);
                  atomic_dec(&countInactiveCache[texIndex]);
@@ -1027,7 +1031,7 @@ kernel void passiveParticlesParticleUpdate(global Particle * particles, global P
 
 
 
-kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global PassiveType * passiveBuffer,  const float passiveMultiplier, global BodyType * bodyField){
+kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t image, local int * particleCountSum, global unsigned  int * countActiveBuffer, global unsigned  int * countInactiveBuffer, global PassiveType * passiveBuffer,  const float passiveMultiplier, global BodyType * bodyField, const float drawPassive, const float drawInactive){
     int idx = get_global_id(0);
     int idy = get_global_id(1);
     int local_size = (int)get_local_size(0)*(int)get_local_size(1);
@@ -1049,7 +1053,7 @@ kernel void updateTexture(read_only image2d_t readimage, write_only image2d_t im
     //------
     
     
-    particleCountSum[tid] = countActiveBuffer[global_id] + countInactiveBuffer[global_id] +passiveBuffer[global_id]*passiveMultiplier;// + bodyField[body_global_id*3]*1000.0;
+    particleCountSum[tid] = countActiveBuffer[global_id] + drawInactive*countInactiveBuffer[global_id] + drawPassive*passiveBuffer[global_id]*passiveMultiplier;// + bodyField[body_global_id*3]*1000.0;
     
     
     //--------

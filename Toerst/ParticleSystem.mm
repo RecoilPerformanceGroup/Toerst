@@ -107,7 +107,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     [[self addPropF:@"globalLightIntensity"] setMinValue:0 maxValue:2];
     
-    
+    [self addPropB:@"globalBorder"];
+    [self addPropF:@"globalDrawPassive"];
+    [self addPropF:@"globalDrawInactive"];
+
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
@@ -146,7 +149,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"trackerDilate"] setMaxValue:40];
     [[self addPropF:@"trackerSubtract"] setMaxValue:10];
     [[self addPropF:@"trackerMultiplier"] setMaxValue:10];
+
     
+
 }
 
 
@@ -491,11 +496,11 @@ static dispatch_once_t onceToken;
         }
     }
     
-    
     // StopTimer();
     
     
-    
+        
+
     if(PropB(@"shaderLoad")){
         SetPropB(@"shaderLoad", 0);
         [self loadShader];
@@ -840,7 +845,7 @@ static dispatch_once_t onceToken;
                       //###############
                       cl_timer updateTimer = gcl_start_timer();
                       
-                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, stickyBuffer_gpu, PropF(@"stickyAmount"), PropF(@"stickyGain"));
+                      update_kernel(&ndrange, (Particle*)particle_gpu, isDead_gpu, generalDt* 1.0/ofGetFrameRate(), 1.0-particleDamp, particleMinSpeed, particleFadeInSpeed*0.01 ,particleFadeOutSpeed*0.01, TEXTURE_RES, stickyBuffer_gpu, PropF(@"stickyAmount"), PropF(@"stickyGain"), PropB(@"globalBorder"));
                       
                       double updateTime = gcl_stop_timer(updateTimer);
                       //###############
@@ -855,7 +860,7 @@ static dispatch_once_t onceToken;
                       
                       //###############
                       cl_timer updateTexTimer = gcl_start_timer();
-                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier"), bodyField_gpu[0]);
+                      updateTexture_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], texture_gpu[!textureFlipFlop], 1024*sizeof(int), countActiveBuffer_gpu, countInactiveBuffer_gpu, countPassiveBuffer_gpu,  PropF(@"passiveMultiplier"), bodyField_gpu[0], PropF(@"globalDrawPassive"), PropF(@"globalDrawInactive"));
                       double updateTexTime = gcl_stop_timer(updateTexTimer);
                       
                       textureFlipFlop = !textureFlipFlop;
