@@ -59,6 +59,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 @synthesize plotData = _plotData;
 
 -(void)initPlugin{
+
     firstLoop = YES;
     [self addPropB:@"_debug"];
     
@@ -575,12 +576,23 @@ static dispatch_once_t onceToken;
     if(PropB(@"fluids")){
         CachePropF(fluidsRadius);
         if(trackers.size() > 0){
+            ofVec2f center = trackers[0];
             for(int y=0;y<FluidSize;y++){
                 for(int x=0;x<FluidSize;x++){
-                    int index = fluidSolver.getIndexForPos(ofVec2f(x/(float)FluidSize,y/(float)FluidSize));
-                    float d = ofVec2f(x/(float)FluidSize,y/(float)FluidSize).distance(trackers[0]);
-                    
+                    ofVec2f pos = ofVec2f(x/(float)FluidSize, y/(float)FluidSize);
+
+                    int index = fluidSolver.getIndexForPos(pos);
+
+                    float d = pos.distance(center);
                     if(d < fluidsRadius){
+                        
+    /*                    ofVec2f dir = pos - center;
+                        dir.normalize();
+                        dir /= 10000.0;
+                        
+                        dir *= 1.0/d;
+  */
+//                        fluidSolver.addForceAtIndex(index, dir/**(fluidsRadius-d)/fluidsRadius*/);
                         fluidSolver.addForceAtIndex(index, (trackers[0]-lastFluidPos)*(fluidsRadius-d)/fluidsRadius);
                     }
                     

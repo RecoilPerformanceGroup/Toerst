@@ -10,6 +10,8 @@
 
 #import "ParticleSystem.h"
 #import "Dmx.h"
+#import "ParameterRecorder.h"
+
 //#import
 @implementation AppDelegate
 
@@ -29,6 +31,7 @@
     [ocp addPlugin:[[ParticleSystem alloc] init]];
     [ocp addPlugin:[[Tracker alloc] init]];
     [ocp addPlugin:[[Dmx alloc] init]];
+    [ocp addPlugin:[[ParameterRecorder alloc] init]];
     
     [ocp loadPlugins];
 

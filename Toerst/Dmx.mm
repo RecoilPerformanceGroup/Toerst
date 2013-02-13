@@ -33,13 +33,13 @@
             ofxOscBundle bundle;
             bundle.addMessage(msg);
             oscSender->sendBundle(bundle);
-   
+            
         }
     }
 }
 
 -(void)update:(NSDictionary *)drawingInformation{
-   }
+}
 
 
 @end

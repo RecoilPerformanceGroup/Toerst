@@ -16,6 +16,8 @@
 		088A84CD16C957FA0014F3A4 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 088A84CC16C957FA0014F3A4 /* icon.icns */; };
 		0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		0891E7A716B6C28B008D06AB /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
+		08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */; };
+		08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */ = {isa = PBXBuildFile; fileRef = 08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */; };
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
 		DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDB1B969167F400A00B44795 /* CorePlot.framework */; };
@@ -72,6 +74,9 @@
 		088A84C716C950650014F3A4 /* Dmx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Dmx.mm; sourceTree = "<group>"; };
 		088A84CC16C957FA0014F3A4 /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = SOURCE_ROOT; };
 		0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
+		08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParameterRecorder.h; sourceTree = "<group>"; };
+		08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ParameterRecorder.mm; sourceTree = "<group>"; };
+		08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParameterRecorder.xib; sourceTree = "<group>"; };
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
 		DDB1B969167F400A00B44795 /* CorePlot.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = CorePlot.framework; sourceTree = "<group>"; };
@@ -226,6 +231,9 @@
 				DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */,
 				088A84C616C950650014F3A4 /* Dmx.h */,
 				088A84C716C950650014F3A4 /* Dmx.mm */,
+				08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */,
+				08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */,
+				08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */,
 				DD5E59C0166CE63900741B57 /* ParticleSystem.xib */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
 				088A84CC16C957FA0014F3A4 /* icon.icns */,
@@ -310,6 +318,7 @@
 				0847C36216BA911500EE8950 /* license.md in Resources */,
 				0847C36316BA911500EE8950 /* README.md in Resources */,
 				088A84CD16C957FA0014F3A4 /* icon.icns in Resources */,
+				08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,6 +340,7 @@
 				0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */,
 				0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */,
 				088A84C816C950650014F3A4 /* Dmx.mm in Sources */,
+				08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
