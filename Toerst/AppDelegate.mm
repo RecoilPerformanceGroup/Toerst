@@ -11,6 +11,7 @@
 #import "ParticleSystem.h"
 #import "Dmx.h"
 #import "ParameterRecorder.h"
+#import "NanoKontrol.h"
 
 //#import
 @implementation AppDelegate
@@ -28,10 +29,11 @@
     [ocp addPlugin:[[Cameras alloc]initWithNumberCameras:1]];
     [ocp addPlugin:[[CameraCalibration alloc] init]];
     [ocp addPlugin:[[BlobTracker2d alloc] init]];
-    [ocp addPlugin:[[ParticleSystem alloc] init]];
+    [ocp addPlugin:[[ParticleSystem alloc] init] midiChannel:10];
     [ocp addPlugin:[[Tracker alloc] init]];
     [ocp addPlugin:[[Dmx alloc] init]];
-    [ocp addPlugin:[[ParameterRecorder alloc] init]];
+    [ocp addPlugin:[[ParameterRecorder alloc] init] midiChannel:12];
+    [ocp addPlugin:[[NanoKontrol alloc] init]];
     
     [ocp loadPlugins];
 

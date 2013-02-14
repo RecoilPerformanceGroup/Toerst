@@ -18,6 +18,9 @@
 		0891E7A716B6C28B008D06AB /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */; };
 		08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */ = {isa = PBXBuildFile; fileRef = 08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */; };
+		08F7C2F016CBB1F800C3BDD9 /* NanoKontrol.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08F7C2EF16CBB1F800C3BDD9 /* NanoKontrol.mm */; };
+		08F7C2F216CBB20400C3BDD9 /* NanoKontrol.xib in Resources */ = {isa = PBXBuildFile; fileRef = 08F7C2F116CBB20400C3BDD9 /* NanoKontrol.xib */; };
+		08F7C2F416CBBEE500C3BDD9 /* korg_nanokontrol2.png in Resources */ = {isa = PBXBuildFile; fileRef = 08F7C2F316CBBEE500C3BDD9 /* korg_nanokontrol2.png */; };
 		DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD098341164C020700CA6147 /* OpenGL.framework */; };
 		DD5E59C1166CE63900741B57 /* ParticleSystem.xib in Resources */ = {isa = PBXBuildFile; fileRef = DD5E59C0166CE63900741B57 /* ParticleSystem.xib */; };
 		DDB1B96A167F400A00B44795 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDB1B969167F400A00B44795 /* CorePlot.framework */; };
@@ -77,6 +80,10 @@
 		08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParameterRecorder.h; sourceTree = "<group>"; };
 		08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ParameterRecorder.mm; sourceTree = "<group>"; };
 		08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParameterRecorder.xib; sourceTree = "<group>"; };
+		08F7C2EE16CBB1F800C3BDD9 /* NanoKontrol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NanoKontrol.h; sourceTree = "<group>"; };
+		08F7C2EF16CBB1F800C3BDD9 /* NanoKontrol.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = NanoKontrol.mm; sourceTree = "<group>"; };
+		08F7C2F116CBB20400C3BDD9 /* NanoKontrol.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = NanoKontrol.xib; sourceTree = "<group>"; };
+		08F7C2F316CBBEE500C3BDD9 /* korg_nanokontrol2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = korg_nanokontrol2.png; sourceTree = "<group>"; };
 		DD098341164C020700CA6147 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		DD5E59C0166CE63900741B57 /* ParticleSystem.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParticleSystem.xib; sourceTree = "<group>"; };
 		DDB1B969167F400A00B44795 /* CorePlot.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = CorePlot.framework; sourceTree = "<group>"; };
@@ -233,6 +240,9 @@
 				088A84C716C950650014F3A4 /* Dmx.mm */,
 				08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */,
 				08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */,
+				08F7C2EE16CBB1F800C3BDD9 /* NanoKontrol.h */,
+				08F7C2EF16CBB1F800C3BDD9 /* NanoKontrol.mm */,
+				08F7C2F116CBB20400C3BDD9 /* NanoKontrol.xib */,
 				08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */,
 				DD5E59C0166CE63900741B57 /* ParticleSystem.xib */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
@@ -247,6 +257,7 @@
 		DDFCE90F164A9F78000DBD4D /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				08F7C2F316CBBEE500C3BDD9 /* korg_nanokontrol2.png */,
 				DDFCE910164A9F78000DBD4D /* Toerst-Info.plist */,
 				DDFCE911164A9F78000DBD4D /* InfoPlist.strings */,
 				DDFCE914164A9F78000DBD4D /* main.m */,
@@ -319,6 +330,8 @@
 				0847C36316BA911500EE8950 /* README.md in Resources */,
 				088A84CD16C957FA0014F3A4 /* icon.icns in Resources */,
 				08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */,
+				08F7C2F216CBB20400C3BDD9 /* NanoKontrol.xib in Resources */,
+				08F7C2F416CBBEE500C3BDD9 /* korg_nanokontrol2.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,6 +354,7 @@
 				0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */,
 				088A84C816C950650014F3A4 /* Dmx.mm in Sources */,
 				08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */,
+				08F7C2F016CBB1F800C3BDD9 /* NanoKontrol.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
