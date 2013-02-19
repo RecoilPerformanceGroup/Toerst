@@ -12,7 +12,7 @@
 #import "Dmx.h"
 #import "ParameterRecorder.h"
 #import "NanoKontrol.h"
-
+#import "DustVideoPlayer.h"
 //#import
 @implementation AppDelegate
 
@@ -34,7 +34,7 @@
     [ocp addPlugin:[[Dmx alloc] init]];
     [ocp addPlugin:[[ParameterRecorder alloc] init] midiChannel:12];
     [ocp addPlugin:[[NanoKontrol alloc] init]];
-    
+//    [ocp addPlugin:[[DustVideoPlayer alloc] init]];
     [ocp loadPlugins];
 
 }

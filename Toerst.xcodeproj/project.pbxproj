@@ -7,11 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0819B47F16CD44740047B410 /* DustVideoPlayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0819B47D16CD43CD0047B410 /* DustVideoPlayer.mm */; };
+		0819B48116CD44B30047B410 /* QTKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0819B48016CD44B30047B410 /* QTKit.framework */; };
+		0819B48316CD44F20047B410 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0819B48216CD44F20047B410 /* CoreVideo.framework */; };
+		0819B48516CD45020047B410 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0819B48416CD45020047B410 /* Quartz.framework */; };
+		0819B48716CD454A0047B410 /* QuickTime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0819B48616CD454A0047B410 /* QuickTime.framework */; };
 		0847C35A16BA911500EE8950 /* MSACoreGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C33A16BA911500EE8950 /* MSACoreGL.cpp */; };
 		0847C36216BA911500EE8950 /* license.md in Resources */ = {isa = PBXBuildFile; fileRef = 0847C34C16BA911500EE8950 /* license.md */; };
 		0847C36316BA911500EE8950 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 0847C34D16BA911500EE8950 /* README.md */; };
 		0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35016BA911500EE8950 /* MSAFluidDrawerBase.cpp */; };
 		0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */; };
+		08737B7516D3E005004E5708 /* VDKQueue.m in Sources */ = {isa = PBXBuildFile; fileRef = 08737B7416D3DF87004E5708 /* VDKQueue.m */; };
 		088A84C816C950650014F3A4 /* Dmx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 088A84C716C950650014F3A4 /* Dmx.mm */; };
 		088A84CD16C957FA0014F3A4 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 088A84CC16C957FA0014F3A4 /* icon.icns */; };
 		0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
@@ -57,6 +63,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0819B47C16CD43CD0047B410 /* DustVideoPlayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DustVideoPlayer.h; sourceTree = "<group>"; };
+		0819B47D16CD43CD0047B410 /* DustVideoPlayer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DustVideoPlayer.mm; sourceTree = "<group>"; };
+		0819B47E16CD43CD0047B410 /* DustVideoPlayer.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = DustVideoPlayer.xib; sourceTree = "<group>"; };
+		0819B48016CD44B30047B410 /* QTKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QTKit.framework; path = System/Library/Frameworks/QTKit.framework; sourceTree = SDKROOT; };
+		0819B48216CD44F20047B410 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		0819B48416CD45020047B410 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
+		0819B48616CD454A0047B410 /* QuickTime.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickTime.framework; path = System/Library/Frameworks/QuickTime.framework; sourceTree = SDKROOT; };
 		0847C33716BA911500EE8950 /* MSACore-OF.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "MSACore-OF.h"; sourceTree = "<group>"; };
 		0847C33816BA911500EE8950 /* MSACore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACore.h; sourceTree = "<group>"; };
 		0847C33916BA911500EE8950 /* MSACoreCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSACoreCommon.h; sourceTree = "<group>"; };
@@ -73,6 +86,8 @@
 		0847C35416BA911500EE8950 /* MSAFluidParticleUpdater.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidParticleUpdater.h; sourceTree = "<group>"; };
 		0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSAFluidSolver.cpp; sourceTree = "<group>"; };
 		0847C35616BA911500EE8950 /* MSAFluidSolver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidSolver.h; sourceTree = "<group>"; };
+		08737B7316D3DF87004E5708 /* VDKQueue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VDKQueue.h; sourceTree = "<group>"; };
+		08737B7416D3DF87004E5708 /* VDKQueue.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = VDKQueue.m; sourceTree = "<group>"; };
 		088A84C616C950650014F3A4 /* Dmx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Dmx.h; sourceTree = "<group>"; };
 		088A84C716C950650014F3A4 /* Dmx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Dmx.mm; sourceTree = "<group>"; };
 		088A84CC16C957FA0014F3A4 /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = SOURCE_ROOT; };
@@ -116,6 +131,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0819B48716CD454A0047B410 /* QuickTime.framework in Frameworks */,
+				0819B48516CD45020047B410 /* Quartz.framework in Frameworks */,
+				0819B48316CD44F20047B410 /* CoreVideo.framework in Frameworks */,
+				0819B48116CD44B30047B410 /* QTKit.framework in Frameworks */,
 				0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */,
 				DD098342164C020700CA6147 /* OpenGL.framework in Frameworks */,
 				DDFCE947164AA4E0000DBD4D /* OpenCL.framework in Frameworks */,
@@ -175,6 +194,15 @@
 			path = src;
 			sourceTree = "<group>";
 		};
+		08737B7116D3DF29004E5708 /* VDKQueue-master */ = {
+			isa = PBXGroup;
+			children = (
+				08737B7316D3DF87004E5708 /* VDKQueue.h */,
+				08737B7416D3DF87004E5708 /* VDKQueue.m */,
+			);
+			path = "VDKQueue-master";
+			sourceTree = "<group>";
+		};
 		DDF061FC167752150014D3CE /* shader */ = {
 			isa = PBXGroup;
 			children = (
@@ -187,6 +215,10 @@
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
+				0819B48616CD454A0047B410 /* QuickTime.framework */,
+				0819B48416CD45020047B410 /* Quartz.framework */,
+				0819B48216CD44F20047B410 /* CoreVideo.framework */,
+				0819B48016CD44B30047B410 /* QTKit.framework */,
 				0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */,
 				DDB1B969167F400A00B44795 /* CorePlot.framework */,
 				DD098341164C020700CA6147 /* OpenGL.framework */,
@@ -234,6 +266,7 @@
 				DDF061F4167745620014D3CE /* Shader.m */,
 				DDFCE91A164A9F78000DBD4D /* AppDelegate.h */,
 				DDFCE91B164A9F78000DBD4D /* AppDelegate.mm */,
+				08737B7116D3DF29004E5708 /* VDKQueue-master */,
 				DDFCE941164AA40E000DBD4D /* ParticleSystem.h */,
 				DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */,
 				088A84C616C950650014F3A4 /* Dmx.h */,
@@ -246,6 +279,9 @@
 				08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */,
 				DD5E59C0166CE63900741B57 /* ParticleSystem.xib */,
 				DDFCE91D164A9F78000DBD4D /* MainMenu.xib */,
+				0819B47C16CD43CD0047B410 /* DustVideoPlayer.h */,
+				0819B47D16CD43CD0047B410 /* DustVideoPlayer.mm */,
+				0819B47E16CD43CD0047B410 /* DustVideoPlayer.xib */,
 				088A84CC16C957FA0014F3A4 /* icon.icns */,
 				DDFCE944164AA4B8000DBD4D /* kernel.cl */,
 				DDF061FC167752150014D3CE /* shader */,
@@ -342,6 +378,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08737B7516D3E005004E5708 /* VDKQueue.m in Sources */,
+				0819B47F16CD44740047B410 /* DustVideoPlayer.mm in Sources */,
 				DDFCE915164A9F78000DBD4D /* main.m in Sources */,
 				DDFCE91C164A9F78000DBD4D /* AppDelegate.mm in Sources */,
 				DDFCE943164AA40E000DBD4D /* ParticleSystem.mm in Sources */,

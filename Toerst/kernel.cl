@@ -166,8 +166,8 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         }
         
         
-        /*
-        float sticky = (float)stickyBuffer[texIndex];
+        
+        /*float sticky = (float)stickyBuffer[texIndex];
         sticky /= 256.0f;
         
         
@@ -176,12 +176,12 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
         } else {
             sticky = 1;
         }
-        */
+    */
         /*        p->vel += p->f * p->mass *  sticky;
          */
         
         
-        p->vel += p->f * p->mass;//* layer * sticky;
+        p->vel += p->f * p->mass; //** sticky; layer;*/
         
         float speed = fast_length(p->vel);
         if(speed < minSpeed*0.1 * p->mass){
@@ -190,7 +190,7 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
             p->f = (float2)(0,0);
         }
         
-        if(fabs(p->vel.x) > 0 || fabs(p->vel.y) > 0){
+        if(fabs(p->vel.x) > 0.001 || fabs(p->vel.y) > 0.001){
             //Make sure its not inactive
             if(p->inactive){
                 p->inactive = false;
@@ -259,19 +259,19 @@ kernel void update(global Particle* particles, global unsigned int * isDeadBuffe
 }
 
 
-kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, read_only global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed, const float fadeOutSpeed, global unsigned int * activeBuffer, global unsigned int * inactiveBuffer){
+kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveBuffer, read_only global uchar * stickyBuffer, const float passiveMultiplier, const float fadeInSpeed, const float fadeOutSpeed, const float particleFadeGain ,global unsigned int * activeBuffer, global unsigned int * inactiveBuffer){
     
     int id = get_global_id(1)*get_global_size(0) + get_global_id(0);
     
     if(get_global_id(1) > 0 && get_global_id(1) < get_global_size(0)-1 && get_global_id(0) > 0 && get_global_id(0) < get_global_size(0)-1){
         
-        if(activeBuffer[id] == 0 && inactiveBuffer[id] == 0 && stickyBuffer[id] > 0){
+        if(activeBuffer[id] == 0 && inactiveBuffer[id] == 0 && stickyBuffer[id]*particleFadeGain > 0){
             int2 texCoord = (int2)(get_global_id(0), get_global_id(1));
             
             float4 pixel = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST, texCoord);
-            uint count = pixel.x * COUNT_MULT*1.0/passiveMultiplier;
+            uint count =  pixel.x * COUNT_MULT*1.0/passiveMultiplier;
             
-            if(stickyBuffer[id] > count){
+            if(stickyBuffer[id]*particleFadeGain > count){
                 
                 float4 otherPixels[4];
                 otherPixels[0] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(-1,0));
@@ -280,10 +280,10 @@ kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveB
                 otherPixels[3] = read_imagef(image, CLK_ADDRESS_CLAMP_TO_EDGE|CLK_FILTER_NEAREST, texCoord+(int2)(0,1));
                 
                 float  otherSticky[4];
-                otherSticky[0] = stickyBuffer[id-1];
-                 otherSticky[1] = stickyBuffer[id+1];
-                 otherSticky[2] = stickyBuffer[id-get_global_size(0)];
-                 otherSticky[3] = stickyBuffer[id+get_global_size(0)];
+                otherSticky[0] = stickyBuffer[id-1]*particleFadeGain;
+                 otherSticky[1] = stickyBuffer[id+1]*particleFadeGain;
+                 otherSticky[2] = stickyBuffer[id-get_global_size(0)]*particleFadeGain;
+                 otherSticky[3] = stickyBuffer[id+get_global_size(0)]*particleFadeGain;
                  
                 
                 float diffs[4];
@@ -301,10 +301,10 @@ kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveB
                 /* if(_max <= 0){
                  passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0;
                  } else {*/
-                passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*1000.0 * (_max);
+                passiveBuffer[id] += fadeInSpeed * stickyBuffer[id]*particleFadeGain*1000.0 * (_max);
                 //            }
-            } else if(stickyBuffer[id] < count && passiveBuffer[id] > 0){
-                   passiveBuffer[id] -= (count-stickyBuffer[id])*fadeOutSpeed*1000.0;
+            } else if(stickyBuffer[id]*particleFadeGain < count && passiveBuffer[id] > 0){
+                   passiveBuffer[id] -= (count-stickyBuffer[id]*particleFadeGain)*fadeOutSpeed*1000.0;
             }
         }
     }
@@ -313,7 +313,7 @@ kernel void fadeFloorIn(read_only image2d_t image, global PassiveType * passiveB
 
 
 
-kernel void addParticles(global Particle * particles, global unsigned int * isDeadBuffer, global unsigned int * countCreateBuffer, const int textureWidth, const int offset, const int numParticles, global unsigned int * countActiveBuffer){
+kernel void addParticles(global Particle * particles, global unsigned int * isDeadBuffer, global unsigned int * countCreateBuffer, const int textureWidth, const int offset, const int offset2, const int numParticles, global unsigned int * countActiveBuffer){
     
     int global_id = get_global_id(0);
     int lid = get_local_id(0);
@@ -330,7 +330,7 @@ kernel void addParticles(global Particle * particles, global unsigned int * isDe
     
     if(numberToAdd > 0.1){
         
-        unsigned int bufferId = (offset*32  + groupId * get_local_size(0) + lid) % (numParticles/32);
+        unsigned int bufferId = ((offset*32+offset2)  + groupId * get_local_size(0) + lid) % (numParticles/32);
         private unsigned int isDeadBufferRead = isDeadBuffer[bufferId];
         
         
@@ -590,6 +590,26 @@ kernel void mouseAdd(global unsigned int * countCreateBuffer,  const float2 addP
     if(dist < mouseRadius){
         countCreateBuffer[index] += numAdd*(mouseRadius-dist)/mouseRadius;
     }
+}
+
+kernel void sideAdd(global unsigned int * countCreateBuffer, const float sideAdd, const float randomSeed){
+    
+    if(sideAdd == 0){
+        return;
+    }
+    
+    int index = get_global_id(1)*get_global_size(0) + get_global_id(0);
+    float x = convert_float(get_global_id(0))/get_global_size(0);
+    float y = convert_float(get_global_id(1))/get_global_size(1);
+    
+    /*float2 diff = addPos - (float2)(x,y);
+    float dist = fast_length(diff);
+    if(dist < mouseRadius){*/
+    
+    if(get_global_id(0) > get_global_size(0) - 10 && convert_int((randomSeed + 0.5412*y)*100000.0)%100000 < 100000*sideAdd ){
+        countCreateBuffer[index] = 1000.0;
+    }
+    
 }
 
 /*

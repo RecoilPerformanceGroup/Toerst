@@ -35,6 +35,29 @@
         [self.allProperties setObject:@{@"korgProp": prop,@"number":@(i), @"prop":@(0)} forKey:@(i)];
     }
 
+    
+    //Qlab 
+    for(int i=32;i<=39;i++){
+        PluginProperty * prop = [self addPropB:[NSString stringWithFormat:@"korg%i",i]];
+        [prop setMidiChannel:@(1)];
+        [prop setMidiNumber:@(i)];
+        
+        NSMutableDictionary * copy = [[self.allProperties objectForKey:@(i-16)] mutableCopy];
+        [copy setObject:prop forKey:@"qlabProp"];
+        
+        [self.allProperties setObject:copy forKey:@(i-16)];
+    }
+    for(int i=64;i<=71;i++){
+        PluginProperty * prop = [self addPropB:[NSString stringWithFormat:@"korg%i",i]];
+        [prop setMidiChannel:@(1)];
+        [prop setMidiNumber:@(i)];
+        
+        NSMutableDictionary * copy = [[self.allProperties objectForKey:@(i-64)] mutableCopy];
+        [copy setObject:prop forKey:@"qlabProp"];
+        
+        [self.allProperties setObject:copy forKey:@(i-64)];
+    }
+
 }
 
 
@@ -110,10 +133,12 @@
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
     
     if([object isKindOfClass:[PluginProperty class]]){
-        PluginProperty * korgProp = object;
+        PluginProperty * prop = object;
         
         for(NSDictionary * dict in [self.allProperties allValues]){
-            if([dict objectForKey:@"korgProp"] == korgProp){
+            if([dict objectForKey:@"korgProp"] == prop){
+                PluginProperty * korgProp = prop;
+
                 PluginProperty * extProp = [dict objectForKey:@"prop"];
                 if([extProp isKindOfClass:[PluginProperty class]]){
                     [extProp midiEvent:[[korgProp midiValue] intValue]];
@@ -121,6 +146,21 @@
                 
                 break;
             }
+            
+            if([dict objectForKey:@"qlabProp"] == prop){
+                PluginProperty * qlabProp = prop;
+                if([qlabProp boolValue]){
+                    PluginProperty * extProp = [dict objectForKey:@"prop"];
+                    if([extProp isKindOfClass:[PluginProperty class]]){
+                        [extProp sendQlab];
+                    }
+                    
+                    [qlabProp setValue:@(NO)];
+                }
+                break;
+            }
+            
+            
         }
     }
 }

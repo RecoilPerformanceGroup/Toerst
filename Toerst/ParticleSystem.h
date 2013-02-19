@@ -14,13 +14,17 @@
 #import "Shader.h"
 #import "MSAFluid.h"
 
+
+//#import <Foundation/Foundation.h>
+#import "VDKQueue.h"
+
 #define BodyDivider 4
 #define BodyType cl_short
 #define PassiveType cl_uint
 #define OpticalFlowSize 50
 #define FluidSize 128
 
-@interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate>{
+@interface ParticleSystem : ofPlugin<CPTPlotDataSource, CPTPlotSpaceDelegate, VDKQueueDelegate>{
     GLuint              texture[2];
     GLuint              forceTexture;
     GLuint              texture_blur;
@@ -94,6 +98,14 @@
     msa::fluid::Solver  fluidSolver;
     msa::fluid::DrawerGl fluidDrawer;
     ofVec2f lastFluidPos;
+    
+    
+    unsigned int * countCreateData;
+    int * forceData;
+    
+    ofImage  maskImage;
+    VDKQueue * vdkQueue;
+    bool loadMask;
 }
 
 @property (readwrite) float clTime;

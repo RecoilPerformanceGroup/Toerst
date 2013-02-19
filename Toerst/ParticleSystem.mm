@@ -62,11 +62,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 
     firstLoop = YES;
     [self addPropB:@"_debug"];
+    [self addPropB:@"_clear"];
     
     [self addPropB:@"passiveParticles"];
-    [[self addPropF:@"passiveMultiplier"] setMinValue:0.01 maxValue:1.0];
-    [[self addPropF:@"passiveBlur"] setMaxValue:0.1];
-    [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];
+    [[self addPropF:@"passiveMultiplier"] setMinValue:0.001 maxValue:0.05];
+    /*[[self addPropF:@"passiveBlur"] setMaxValue:0.1];
+    [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];*/
     [self addPropB:@"loadImage"];
     
     [[self addPropF:@"mouseForce"] setMaxValue:100];
@@ -78,21 +79,22 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     [self addPropF:@"particleDamp"];
     [self addPropF:@"particleMinSpeed"];
+    [self addPropF:@"particleFadeGain"];
     [self addPropF:@"particleFadeOutSpeed"];
     [[self addPropF:@"particleFadeInSpeed"] setMaxValue:1];
     [[self addPropF:@"densityForce"] setMaxValue:0.05];
     [self addPropB:@"drawTexture"];
     [self addPropB:@"drawForceTexture"];
     
-    [self addPropF:@"forceFieldParticleInfluence"];
+    [[self addPropF:@"forceFieldParticleInfluence"] setMaxValue:2.0];
     [[self addPropF:@"forceTextureForce"] setMaxValue:10.0];
     //    [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
     
-    [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
+  /*  [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
     [[self addPropF:@"lightY"] setMinValue:-1 maxValue:1];
     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
-    [self addPropF:@"shaderDiffuse"] ;
+    [self addPropF:@"shaderDiffuse"] ;*/
     [[self addPropF:@"shaderGain"] setMaxValue:10.0];
     [[self addPropF:@"shaderCrazy"] setMinValue:0 maxValue:1];
     [[self addPropF:@"shaderAnimalHeight"] setMinValue:0 maxValue:1];
@@ -105,6 +107,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"globalLightPosX"] setMinValue:-1 maxValue:2];
     [[self addPropF:@"globalLightPosY"] setMinValue:-1 maxValue:2];
     [[self addPropF:@"globalLightPosZ"] setMinValue:0 maxValue:2];
+
+    [[self addPropF:@"globalLightR"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"globalLightG"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"globalLightB"] setMinValue:0 maxValue:1];
+
+    
     
     [[self addPropF:@"globalLightIntensity"] setMinValue:0 maxValue:2];
     
@@ -118,15 +126,15 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     [[self addPropF:@"pointWindX"] setMinValue:0 maxValue:1];
     [[self addPropF:@"pointWindY"] setMinValue:0 maxValue:1];
-    [[self addPropF:@"pointWind"] setMinValue:0 maxValue:1000];
+    [[self addPropF:@"pointWind"] setMinValue:0 maxValue:100];
     
-    
+    /*
     [[self addPropF:@"rectAddX"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAddY"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAddWidth"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAddHeight"] setMinValue:0 maxValue:1];
     [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
-    
+    */
     
     [[self addPropF:@"whirlAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"whirlRadius"] setMinValue:0 maxValue:1];
@@ -136,9 +144,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"stickyAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"stickyGain"] setMinValue:0 maxValue:1];
     
-    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
+/*    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
     [[self addPropF:@"opticalFlowMinForce"] setMinValue:0 maxValue:1];
-    
+  */  
     [self addPropB:@"fluids"];
     [self addPropB:@"fluidsDraw"];
     [[self addPropF:@"fluidsAmount"] setMaxValue:100.0];
@@ -151,8 +159,22 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"trackerSubtract"] setMaxValue:10];
     [[self addPropF:@"trackerMultiplier"] setMaxValue:10];
 
+        [[self addPropF:@"sideAdd"] setMaxValue:1];
+    [[self addPropF:@"sideAddForce"] setMaxValue:1];
     
+    
+    vdkQueue = [[VDKQueue alloc]init];
+    [vdkQueue addPath:@"/Users/recoil/Documents/Produktioner/Tørst/mask"];
+    vdkQueue.delegate = self;
 
+    loadMask = true;
+}
+
+-(void)VDKQueue:(VDKQueue *)queue receivedNotification:(NSString *)noteName forPath:(NSString *)fpath{
+    NSLog(@"Watcher");
+//    [self loadFolder];
+    
+    loadMask = true;
 }
 
 
@@ -325,7 +347,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self loadShader];
     
     
-
+    
     
     
     {
@@ -351,6 +373,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     }
     
     
+    countCreateData = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+    forceData = (int*)malloc(sizeof(int)*TEXTURE_RES*TEXTURE_RES*2);
+    
     
     
     //Fluids
@@ -359,6 +384,20 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     fluidSolver.setFadeSpeed(0.002).setDeltaT(0.5).setVisc(0.00015).setColorDiffusion(0);
     fluidDrawer.setup(&fluidSolver);
     fluidDrawer.setDrawMode(msa::fluid::kDrawMotion);
+    
+    
+    
+/*    dispatch_sync(dispatch_get_main_queue(), ^{
+        videoPlayer = [[[QTKitMovieRenderer alloc] init] retain];
+        BOOL video = [videoPlayer loadMovie:@"/Users/recoil/Documents/Produktioner/Tørst/storm.mp4" allowTexture:YES allowPixels:NO];
+        [videoPlayer setLoops:YES];
+        
+        NSAssert(video, @"No storm video");
+    });*/
+
+    
+    
+    
     
 }
 
@@ -389,7 +428,10 @@ int curr_read_index, curr_write_index;
 
 -(void)update:(NSDictionary *)drawingInformation{
     
-    
+    if(loadMask){
+        maskImage.loadImage("/Users/recoil/Documents/Produktioner/Tørst/mask/mask.png");
+        loadMask = false;
+    }
     
 }
 
@@ -407,12 +449,12 @@ static dispatch_once_t onceToken;
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
     CachePropF(mouseAdd);
-    
+  /*
     CachePropF(rectAdd);
     CachePropF(rectAddX);
     CachePropF(rectAddY);
     CachePropF(rectAddWidth);
-    CachePropF(rectAddHeight);
+    CachePropF(rectAddHeight);*/
     
     CachePropF(particleDamp);
     CachePropF(generalDt);
@@ -433,6 +475,99 @@ static dispatch_once_t onceToken;
     
     CachePropB(fluids);
     
+    
+    if(PropB(@"_clear")){
+        SetPropB(@"_clear",NO);
+        
+        Particle *			particles;
+        
+        // particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
+        particles = (Particle*) malloc(NUM_PARTICLES* sizeof(Particle));
+
+        for(int i=0; i<NUM_PARTICLES; i++) {
+            Particle &p = particles[i];
+            p.vel.s[0] = 0;//ofRandom(-1,1);
+            p.vel.s[1] = 0;//ofRandom(-1,1);
+            p.mass = ofRandom(0.5, 1);
+            p.pos.s[0] = ofRandom(1);
+            p.pos.s[1] = ofRandom(1);
+            p.dead = YES;
+            p.inactive = NO;
+            p.alpha = 0.0;
+            p.layer = 0;
+            
+        }
+        
+        for(int i=0;i<NUM_PARTICLES/32;i++){
+            isDead[i] = 0xFFFFFFFF;
+        }
+
+        
+        
+        /*
+         countPassiveBuffer_gpu
+         particle_gpu
+         */
+
+        unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+        for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+            pixelsDst[i] = 0;
+        }
+    
+
+        
+        dispatch_sync(queue,
+                      ^{
+                          gcl_memcpy(particle_gpu, particles, sizeof(Particle)*NUM_PARTICLES);
+                          gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
+                          gcl_memcpy(isDead_gpu, isDead, sizeof(int)*(NUM_PARTICLES/32));
+                          delete pixelsDst;
+                          delete particles;
+
+                      });
+    }
+    
+    if(PropF(@"sideAdd")){
+        CachePropF(sideAdd);
+        CachePropF(sideAddForce);
+        //  sideAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, sideAdd);
+        
+        
+        int i=0;
+        for(int y=0;y<TEXTURE_RES;y++){
+            for(int x=0;x<TEXTURE_RES;x++){
+                countCreateData[i] = 0;
+                forceData[i*2] = 0;
+                forceData[i*2+1] = 0;
+                
+                if(x > TEXTURE_RES - 10){
+                  //  float random = ofRandom(-10,10);
+                    
+                    
+                    //float s = (sin(sin(frameNum/(100.0+random*2)) + cos(y/100.0+random))+1)/2.0;
+                    float s = 1;
+                    float a = sideAdd * s;
+                    if(ofRandom(1) < a){
+                        countCreateData[i] = int(ofRandom(1,1))*1000.0;
+                        
+                        forceData[i*2] = -100000*ofRandom(sideAddForce*0.5,sideAddForce);
+                    }
+                }
+                i++;
+            }
+            
+        }
+        
+        dispatch_async(queue,
+                      ^{
+                          gcl_memcpy(countCreateParticleBuffer_gpu, countCreateData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES);
+                          gcl_memcpy(forceField_gpu, forceData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES*2);
+                          
+                      });
+
+        
+ 
+    }
     
     
     int trackerMinX, trackerMaxX, trackerMinY, trackerMaxY;
@@ -723,6 +858,17 @@ static dispatch_once_t onceToken;
                           }
                       }
                       
+                      
+                      if(PropF(@"sideAdd")){
+                          CachePropF(sideAdd);
+                          
+                        //  sideAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, sideAdd, ofRandom(0,1));
+          
+                          
+                          
+                      }
+
+                      
                       /* if(rectAdd){
                        cl_float4 rect;
                        rect.s[0] = rectAddX;
@@ -797,7 +943,7 @@ static dispatch_once_t onceToken;
                       
                       
                       if(particleFadeInSpeed || particleFadeOutSpeed){
-                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed*0.01, particleFadeOutSpeed*0.01, countActiveBuffer_gpu, countInactiveBuffer_gpu);
+                          fadeFloorIn_kernel(&ndrangeTex, texture_gpu[textureFlipFlop], countPassiveBuffer_gpu, stickyBuffer_gpu, PropF(@"passiveMultiplier"), particleFadeInSpeed*0.01, particleFadeOutSpeed*0.01, PropF(@"particleFadeGain"), countActiveBuffer_gpu, countInactiveBuffer_gpu);
                       }
                       // NSLog(@"%f",particleFadeInSpeed);
                       double passiveTime = gcl_stop_timer(passiveTimer);
@@ -808,7 +954,8 @@ static dispatch_once_t onceToken;
                       cl_timer addTimer = gcl_start_timer();
                       
                       for(int i=0;i<5;i++){
-                          addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum+=10, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
+                          addParticles_kernel(&ndrangeTexAdd, particle_gpu, isDead_gpu, countCreateParticleBuffer_gpu, TEXTURE_RES, frameNum*5, /*(i+frameNum)%32*/0, NUM_PARTICLES_FRAC, countActiveBuffer_gpu);
+                          frameNum ++;
                       }
                       double addTime = gcl_stop_timer(addTimer);
                       //###################################
@@ -824,7 +971,7 @@ static dispatch_once_t onceToken;
                       
                       //DEBUG
                       if(_debug){
-                      sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
+                          sumCounter_kernel(&ndrange, particle_gpu, isDead_gpu, counter_gpu, 1024*sizeof(ParticleCounter));
                       }
                       double sumTime = gcl_stop_timer(sumTimer);
                       //###################################
@@ -889,10 +1036,10 @@ static dispatch_once_t onceToken;
                           updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceField_gpu);
                       }
                       
-                      
+                  /*
                       if(PropF(@"passiveBlur")){
                           gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
-                      }
+                      }*/
                       
                       
                       cl_ndrange ndrangeReset = {
@@ -959,7 +1106,7 @@ static dispatch_once_t onceToken;
     // ofBackground(0.0*255,0.0*255,0.0*255);
     
     
-    ofSetColor(255,255,255);
+    ofSetColor(255*PropF(@"globalLightR"),255*PropF(@"globalLightG"),255*PropF(@"globalLightB"));
     //Shader
     glUseProgramObjectARB(programObject);
 	
@@ -1067,7 +1214,12 @@ static dispatch_once_t onceToken;
         fluidDrawer.draw(0, 0, 1, 1);
     }
     
-    PopSurface();
+    
+    
+    ofSetColor(255, 255, 255, 255);
+    maskImage.draw(0,0,1,1);
+    
+     PopSurface();
     
     
 }
