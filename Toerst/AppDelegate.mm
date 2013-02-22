@@ -9,10 +9,11 @@
 #import "AppDelegate.h"
 
 #import "ParticleSystem.h"
-#import "Dmx.h"
 #import "ParameterRecorder.h"
 #import "NanoKontrol.h"
 #import "DustVideoPlayer.h"
+#import "DmxOutput.h"
+
 //#import
 @implementation AppDelegate
 
@@ -28,12 +29,12 @@
     [ocp addPlugin:[[OSCControl alloc] init]];
     [ocp addPlugin:[[Cameras alloc]initWithNumberCameras:1]];
     [ocp addPlugin:[[CameraCalibration alloc] init]];
-    [ocp addPlugin:[[BlobTracker2d alloc] init]];
+    [ocp addPlugin:[[BlobTracker2d alloc] init] midiChannel:11];
     [ocp addPlugin:[[ParticleSystem alloc] init] midiChannel:10];
     [ocp addPlugin:[[Tracker alloc] init]];
-    [ocp addPlugin:[[Dmx alloc] init]];
     [ocp addPlugin:[[ParameterRecorder alloc] init] midiChannel:12];
     [ocp addPlugin:[[NanoKontrol alloc] init]];
+    [ocp addPlugin:[[DmxOutput alloc] init]];
 //    [ocp addPlugin:[[DustVideoPlayer alloc] init]];
     [ocp loadPlugins];
 

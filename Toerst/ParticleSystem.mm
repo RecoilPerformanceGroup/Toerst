@@ -96,7 +96,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
     [self addPropF:@"shaderDiffuse"] ;*/
     [[self addPropF:@"shaderGain"] setMaxValue:10.0];
+    [Prop(@"shaderGain") setMidiSmoothing:0.1];
+    
     [[self addPropF:@"shaderCrazy"] setMinValue:0 maxValue:1];
+    [[self addPropF:@"shaderTilt"] setMinValue:-0.1 maxValue:0.1];
+
+    
     [[self addPropF:@"shaderAnimalHeight"] setMinValue:0 maxValue:1];
     [[self addPropF:@"shaderAnimalRadius"] setMinValue:0 maxValue:20];
     [[self addPropF:@"shaderAnimalPosX"] setMinValue:0 maxValue:1];
@@ -107,6 +112,10 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"globalLightPosX"] setMinValue:-1 maxValue:2];
     [[self addPropF:@"globalLightPosY"] setMinValue:-1 maxValue:2];
     [[self addPropF:@"globalLightPosZ"] setMinValue:0 maxValue:2];
+    
+    [Prop(@"globalLightPosX") setMidiSmoothing:0.8];
+    [Prop(@"globalLightPosY") setMidiSmoothing:0.8];
+
 
     [[self addPropF:@"globalLightR"] setMinValue:0 maxValue:1];
     [[self addPropF:@"globalLightG"] setMinValue:0 maxValue:1];
@@ -1136,10 +1145,10 @@ static dispatch_once_t onceToken;
     
     glBegin(GL_QUADS);
     
-    glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0);
-    glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0);
-    glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0);
-    glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0);
+    glTexCoord2d(0.0,0.0); glVertex2d(0.0,0.0+PropF(@"shaderTilt"));
+    glTexCoord2d(1.0,0.0); glVertex2d(1.0,0.0-PropF(@"shaderTilt"));
+    glTexCoord2d(1.0,1.0); glVertex2d(1.0,1.0-PropF(@"shaderTilt"));
+    glTexCoord2d(0.0,1.0); glVertex2d(0.0,1.0+PropF(@"shaderTilt"));
     glEnd();
     
     PopSurface();
@@ -1202,6 +1211,7 @@ static dispatch_once_t onceToken;
     
     if(0){
         //   vector<ofVec2f> trackers = [GetPlugin(OSCControl) getTrackerCoordinates];
+        
         ofSetColor(100, 100, 100);
         for(int i=0;i<trackers.size();i++){
             ofCircle(trackers[i].x, trackers[i].y, 0.01);

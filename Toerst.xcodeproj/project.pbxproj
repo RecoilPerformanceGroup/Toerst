@@ -18,7 +18,9 @@
 		0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35016BA911500EE8950 /* MSAFluidDrawerBase.cpp */; };
 		0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0847C35516BA911500EE8950 /* MSAFluidSolver.cpp */; };
 		08737B7516D3E005004E5708 /* VDKQueue.m in Sources */ = {isa = PBXBuildFile; fileRef = 08737B7416D3DF87004E5708 /* VDKQueue.m */; };
-		088A84C816C950650014F3A4 /* Dmx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 088A84C716C950650014F3A4 /* Dmx.mm */; };
+		0885865F16D6A03800140900 /* DmxOutput.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0885865E16D6A03800140900 /* DmxOutput.mm */; };
+		0885866216D6A04D00140900 /* DmxOutput.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0885866116D6A04D00140900 /* DmxOutput.xib */; };
+		0885866616D6AF7E00140900 /* DmxPro.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0885866416D6AF7E00140900 /* DmxPro.cpp */; };
 		088A84CD16C957FA0014F3A4 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 088A84CC16C957FA0014F3A4 /* icon.icns */; };
 		0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		0891E7A716B6C28B008D06AB /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
@@ -88,8 +90,11 @@
 		0847C35616BA911500EE8950 /* MSAFluidSolver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MSAFluidSolver.h; sourceTree = "<group>"; };
 		08737B7316D3DF87004E5708 /* VDKQueue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VDKQueue.h; sourceTree = "<group>"; };
 		08737B7416D3DF87004E5708 /* VDKQueue.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = VDKQueue.m; sourceTree = "<group>"; };
-		088A84C616C950650014F3A4 /* Dmx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Dmx.h; sourceTree = "<group>"; };
-		088A84C716C950650014F3A4 /* Dmx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Dmx.mm; sourceTree = "<group>"; };
+		0885865D16D6A03800140900 /* DmxOutput.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DmxOutput.h; sourceTree = "<group>"; };
+		0885865E16D6A03800140900 /* DmxOutput.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = DmxOutput.mm; sourceTree = "<group>"; };
+		0885866116D6A04D00140900 /* DmxOutput.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = DmxOutput.xib; sourceTree = "<group>"; };
+		0885866416D6AF7E00140900 /* DmxPro.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DmxPro.cpp; sourceTree = "<group>"; };
+		0885866516D6AF7E00140900 /* DmxPro.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DmxPro.h; sourceTree = "<group>"; };
 		088A84CC16C957FA0014F3A4 /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = SOURCE_ROOT; };
 		0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
 		08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParameterRecorder.h; sourceTree = "<group>"; };
@@ -203,6 +208,15 @@
 			path = "VDKQueue-master";
 			sourceTree = "<group>";
 		};
+		0885866316D6AF7E00140900 /* comm */ = {
+			isa = PBXGroup;
+			children = (
+				0885866416D6AF7E00140900 /* DmxPro.cpp */,
+				0885866516D6AF7E00140900 /* DmxPro.h */,
+			);
+			path = comm;
+			sourceTree = "<group>";
+		};
 		DDF061FC167752150014D3CE /* shader */ = {
 			isa = PBXGroup;
 			children = (
@@ -269,8 +283,6 @@
 				08737B7116D3DF29004E5708 /* VDKQueue-master */,
 				DDFCE941164AA40E000DBD4D /* ParticleSystem.h */,
 				DDFCE942164AA40E000DBD4D /* ParticleSystem.mm */,
-				088A84C616C950650014F3A4 /* Dmx.h */,
-				088A84C716C950650014F3A4 /* Dmx.mm */,
 				08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */,
 				08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */,
 				08F7C2EE16CBB1F800C3BDD9 /* NanoKontrol.h */,
@@ -282,6 +294,10 @@
 				0819B47C16CD43CD0047B410 /* DustVideoPlayer.h */,
 				0819B47D16CD43CD0047B410 /* DustVideoPlayer.mm */,
 				0819B47E16CD43CD0047B410 /* DustVideoPlayer.xib */,
+				0885866316D6AF7E00140900 /* comm */,
+				0885865D16D6A03800140900 /* DmxOutput.h */,
+				0885865E16D6A03800140900 /* DmxOutput.mm */,
+				0885866116D6A04D00140900 /* DmxOutput.xib */,
 				088A84CC16C957FA0014F3A4 /* icon.icns */,
 				DDFCE944164AA4B8000DBD4D /* kernel.cl */,
 				DDF061FC167752150014D3CE /* shader */,
@@ -368,6 +384,7 @@
 				08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */,
 				08F7C2F216CBB20400C3BDD9 /* NanoKontrol.xib in Resources */,
 				08F7C2F416CBBEE500C3BDD9 /* korg_nanokontrol2.png in Resources */,
+				0885866216D6A04D00140900 /* DmxOutput.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,9 +407,10 @@
 				0847C35A16BA911500EE8950 /* MSACoreGL.cpp in Sources */,
 				0847C36416BA911500EE8950 /* MSAFluidDrawerBase.cpp in Sources */,
 				0847C36516BA911500EE8950 /* MSAFluidSolver.cpp in Sources */,
-				088A84C816C950650014F3A4 /* Dmx.mm in Sources */,
 				08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */,
 				08F7C2F016CBB1F800C3BDD9 /* NanoKontrol.mm in Sources */,
+				0885865F16D6A03800140900 /* DmxOutput.mm in Sources */,
+				0885866616D6AF7E00140900 /* DmxPro.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
