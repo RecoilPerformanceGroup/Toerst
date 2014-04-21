@@ -34,7 +34,7 @@
     [ocp addPlugin:[[Tracker alloc] init]];
     [ocp addPlugin:[[ParameterRecorder alloc] init] midiChannel:12];
     [ocp addPlugin:[[NanoKontrol alloc] init]];
-    [ocp addPlugin:[[DmxOutput alloc] init]];
+    [ocp addPlugin:[[DmxOutput alloc] init] midiChannel:9];
 //    [ocp addPlugin:[[DustVideoPlayer alloc] init]];
     [ocp loadPlugins];
 

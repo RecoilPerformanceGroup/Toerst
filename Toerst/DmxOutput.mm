@@ -7,6 +7,7 @@
 //
 
 #import "DmxOutput.h"
+#import <ofxCocoaPlugins/Cameras.h>
 
 #define NUM_CHANNELS 19
 
@@ -32,9 +33,67 @@
     [Prop(@"channel19") bind:@"value" toObject:Prop(@"channel16") withKeyPath:@"value" options:nil];
     
     
+    [[self addPropF:@"frontLamp"] setMaxValue:127];
+    
+    [[self addPropF:@"lfoSpeed"] setMaxValue:60];
+    [[self addPropF:@"lfoMin"] setMaxValue:127];
+    [[self addPropF:@"lfoMax"] setMaxValue:127];
+    
+    [[self addPropF:@"lfoTime"] setMaxValue:1];
+    [[self addPropF:@"lfoBlink"] setMaxValue:1];
+    [self addPropB:@"lfoNorm"];
+    
+    [[self addPropF:@"shutter"] setMaxValue:255];
+    [self addPropB:@"led1"];
+    [self addPropB:@"led2"];
+
+    [self addPropB:@"setCameraSettings"];
+    
+    
+    SetPropF(@"lfoTime",0);
+    
     oscSender = new ofxOscSender;
     oscSender->setup("255.255.255.255", 1313);
+
+    oscSenderProj = new ofxOscSender;
+
+    oscSenderProj->setup("10.0.1.177", 10000);
+    //    oscSenderProj->setup("localhost", 10000);
     
+    
+    
+}
+
+
+-(void)update:(NSDictionary *)drawingInformation{
+    if(PropF(@"lfoSpeed")){
+        CachePropF(lfoTime);
+        float inc = (PropF(@"lfoSpeed")/60.0) * 1.0/ofGetFrameRate();;
+        if(inc > 0 && inc < 1)
+            lfoTime +=  inc;
+        
+        
+        
+        if(lfoTime > 1)
+            lfoTime-= 1;
+
+        SetPropF(@"lfoTime", lfoTime);
+        
+        
+        float sinVal = (cos(lfoTime*TWO_PI)+1)/2;
+        
+        if(PropB(@"lfoNorm")) {
+            sinVal = (fabs(sinVal*2-1));
+        }
+        SetPropF(@"frontLamp", ofMap(sinVal, 0,1,PropF(@"lfoMin"), PropF(@"lfoMax")));
+        
+       // [GetPlugin(Midi) sendValue:PropI(@"frontLamp") forNote:0 onChannel:1];
+        
+    }
+    if( PropF(@"lfoBlink")){
+        SetPropF(@"frontLamp", ofMap(PropF(@"lfoBlink"), 0,1,PropF(@"lfoMin"), PropF(@"lfoMax")));
+
+    }
 }
 
 
@@ -51,7 +110,7 @@
         NSRect frame = NSMakeRect(12, (u-10)*40, 140, 22);
         
         if(u <= 9){
-            frame= NSMakeRect(500, (u)*40, 140, 22);
+            frame = NSMakeRect(500, (u)*40, 140, 22);
         }
         
         {
@@ -137,7 +196,46 @@
 }
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
+    if(object == Prop(@"led1")){
+        ofxOscMessage msg;
+        msg.setAddress("/relay/1");
+        msg.addIntArg(PropB(@"led1"));
+        
+        
+       // ofxOscBundle bundle;
+       // bundle.addMessage(msg);
+       // oscSenderProj->sendBundle(bundle);
+         oscSenderProj->sendMessage(msg);
+    }
+    if(object == Prop(@"setCameraSettings") && PropB(@"setCameraSettings")){
+        SetPropB(@"setCameraSettings", 0);
+        Cameras * cameras = GetPlugin(Cameras);
+        CameraInstance * camera = [cameras getCamera:0].cameraInstance;
+        
+        [camera setValue:[NSNumber numberWithInt:30000] forKey:@"exposure"];
+        [camera setValue:[NSNumber numberWithInt:20] forKey:@"gain"];
+    }
+    if(object == Prop(@"led2")){
+        ofxOscMessage msg;
+        msg.setAddress("/relay/2");
+        msg.addIntArg(PropB(@"led2"));
+        
+        oscSenderProj->sendMessage(msg);
+    }
     
+    if(object == Prop(@"shutter")){
+        ofxOscMessage msg;
+        msg.setAddress("/shutter/1");
+        msg.addIntArg(PropI(@"shutter"));
+        
+        oscSenderProj->sendMessage(msg);
+    }
+    if(object == Prop(@"frontLamp")){
+    //    dispatch_async(dispatch_get_main_queue(), ^{
+            [GetPlugin(Midi) sendValue:PropI(@"frontLamp") forNote:0 onChannel:1];
+     //   });
+    }
+
     for(int i=0;i<NUM_CHANNELS;i++){
         NSString * propPatch= [NSString stringWithFormat:@"channel%02ipatch", i+1];
         if(object == Prop(propPatch)){

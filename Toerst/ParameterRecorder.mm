@@ -20,11 +20,15 @@
     NumberProperty * propX = [[particles properties] objectForKey:@"shaderAnimalPosX"];
     NumberProperty * propY = [[particles properties] objectForKey:@"shaderAnimalPosY"];
     
-    [self.timelines addObject:[@{@"PropertyX":propX, @"PropertyY":propY, @"frames":[@[] mutableCopy]} mutableCopy]];
+    for(int i=0;i<5;i++){
+        [self.timelines addObject:[@{@"PropertyX":propX, @"PropertyY":propY, @"frames":[@[] mutableCopy]} mutableCopy]];
+    }
     
     [self addPropB:@"record"];
     [self addPropB:@"play"];
     [self addPropF:@"currentTime"];
+    [[self addPropF:@"index"] setMaxValue:5];
+    
 }
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
@@ -35,9 +39,11 @@
     }
     if(object == Prop(@"record")){
         if(PropB(@"record")){
-            for(NSMutableDictionary * dict in self.timelines){
+//            for(NSMutableDictionary * dict in self.timelines){
+            NSMutableDictionary * dict = [self.timelines objectAtIndex:PropI(@"index")];
+            
                 [dict setValue:[@[] mutableCopy] forKey:@"frames"];
-            }
+  //          }
             
             SetPropF(@"currentTime", 0);
             
@@ -57,7 +63,9 @@
     }
     
     if(play){
-        for(NSDictionary * dict in self.timelines){
+       // for(NSDictionary * dict in self.timelines){
+            NSMutableDictionary * dict = [self.timelines objectAtIndex:PropI(@"index")];
+
             NumberProperty * propX = [dict objectForKey:@"PropertyX"];
             NumberProperty * propY = [dict objectForKey:@"PropertyY"];
             
@@ -69,13 +77,15 @@
                     break;
                 }
             }
-        }
+     //   }
     }
     
     if(record){
         SetPropB(@"play", NO);
         
-        for(NSDictionary * dict in self.timelines){
+        //for(NSDictionary * dict in self.timelines){
+        NSMutableDictionary * dict = [self.timelines objectAtIndex:PropI(@"index")];
+
             NumberProperty * propX = [dict objectForKey:@"PropertyX"];
             NumberProperty * propY = [dict objectForKey:@"PropertyY"];
             
@@ -86,7 +96,7 @@
             };
             
             [[dict objectForKey:@"frames"] addObject:frame];
-        }
+       // }
     }
     
 }
@@ -96,7 +106,9 @@
     
     ofBackground(0, 0, 0);
     
-    for(NSDictionary * dict in self.timelines){
+//    for(NSDictionary * dict in self.timelines){
+    NSMutableDictionary * dict = [self.timelines objectAtIndex:PropI(@"index")];
+
         NSArray * frames = [dict objectForKey:@"frames"];
         for(NSDictionary * frame in frames){
             if([[frame valueForKey:@"time"] floatValue] > currentTime){
@@ -116,7 +128,7 @@
         
         ofCircle([propX floatValue]*ofGetWidth(), [propY floatValue]*ofGetHeight(), 10);
         ofFill();
-    }
+   // }
 }
 
 -(void)willSave{

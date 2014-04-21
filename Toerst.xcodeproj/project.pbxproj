@@ -24,6 +24,8 @@
 		088A84CD16C957FA0014F3A4 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 088A84CC16C957FA0014F3A4 /* icon.icns */; };
 		0891E7A616B6C288008D06AB /* ofxCocoaPlugins.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
 		0891E7A716B6C28B008D06AB /* ofxCocoaPlugins.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */; };
+		08AFE53816DF92DD00E4F31E /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08AFE53716DF92DD00E4F31E /* Security.framework */; };
+		08AFE53A16DF92E600E4F31E /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08AFE53916DF92E600E4F31E /* CFNetwork.framework */; };
 		08F7C2EA16CA7CD700C3BDD9 /* ParameterRecorder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */; };
 		08F7C2ED16CA885200C3BDD9 /* ParameterRecorder.xib in Resources */ = {isa = PBXBuildFile; fileRef = 08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */; };
 		08F7C2F016CBB1F800C3BDD9 /* NanoKontrol.mm in Sources */ = {isa = PBXBuildFile; fileRef = 08F7C2EF16CBB1F800C3BDD9 /* NanoKontrol.mm */; };
@@ -97,6 +99,8 @@
 		0885866516D6AF7E00140900 /* DmxPro.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DmxPro.h; sourceTree = "<group>"; };
 		088A84CC16C957FA0014F3A4 /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = SOURCE_ROOT; };
 		0891E7A516B6C288008D06AB /* ofxCocoaPlugins.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ofxCocoaPlugins.framework; path = ../ofxCocoaPlugins/build/Debug/ofxCocoaPlugins.framework; sourceTree = "<group>"; };
+		08AFE53716DF92DD00E4F31E /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		08AFE53916DF92E600E4F31E /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		08F7C2E816CA7CD700C3BDD9 /* ParameterRecorder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParameterRecorder.h; sourceTree = "<group>"; };
 		08F7C2E916CA7CD700C3BDD9 /* ParameterRecorder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ParameterRecorder.mm; sourceTree = "<group>"; };
 		08F7C2EC16CA885200C3BDD9 /* ParameterRecorder.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ParameterRecorder.xib; sourceTree = "<group>"; };
@@ -136,6 +140,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08AFE53A16DF92E600E4F31E /* CFNetwork.framework in Frameworks */,
+				08AFE53816DF92DD00E4F31E /* Security.framework in Frameworks */,
 				0819B48716CD454A0047B410 /* QuickTime.framework in Frameworks */,
 				0819B48516CD45020047B410 /* Quartz.framework in Frameworks */,
 				0819B48316CD44F20047B410 /* CoreVideo.framework in Frameworks */,
@@ -229,6 +235,8 @@
 		DDFCE8F9164A9F78000DBD4D = {
 			isa = PBXGroup;
 			children = (
+				08AFE53916DF92E600E4F31E /* CFNetwork.framework */,
+				08AFE53716DF92DD00E4F31E /* Security.framework */,
 				0819B48616CD454A0047B410 /* QuickTime.framework */,
 				0819B48416CD45020047B410 /* Quartz.framework */,
 				0819B48216CD44F20047B410 /* CoreVideo.framework */,

@@ -15,6 +15,7 @@
     BOOL _isConnected;
     
     ofxOscSender * oscSender;
+    ofxOscSender * oscSenderProj;
 
 }
 

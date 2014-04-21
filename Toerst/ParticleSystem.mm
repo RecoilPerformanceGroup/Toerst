@@ -32,7 +32,6 @@ static NSString *activeIdentifier = @"Active Particles";
 static NSString *deadIdentifier = @"Dead Particles";
 
 
-
 float * createBlurMask(float sigma, int * maskSizePointer) {
     int maskSize = (int)ceil(3.0f*sigma);
     float * mask = new float[(maskSize*2+1)*(maskSize*2+1)];
@@ -59,7 +58,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
 @synthesize plotData = _plotData;
 
 -(void)initPlugin{
-
+    
     firstLoop = YES;
     [self addPropB:@"_debug"];
     [self addPropB:@"_clear"];
@@ -67,7 +66,7 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [self addPropB:@"passiveParticles"];
     [[self addPropF:@"passiveMultiplier"] setMinValue:0.001 maxValue:0.05];
     /*[[self addPropF:@"passiveBlur"] setMaxValue:0.1];
-    [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];*/
+     [[self addPropF:@"passiveFade"] setMinValue:0.9 maxValue:1.0];*/
     [self addPropB:@"loadImage"];
     
     [[self addPropF:@"mouseForce"] setMaxValue:100];
@@ -91,16 +90,16 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     //    [[self addPropF:@"forceTextureBlur"] setMaxValue:1.0];
     [self addPropF:@"forceTextureMaxForce"];
     
-  /*  [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
-    [[self addPropF:@"lightY"] setMinValue:-1 maxValue:1];
-    [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
-    [self addPropF:@"shaderDiffuse"] ;*/
+    /*  [[self addPropF:@"lightX"] setMinValue:-1 maxValue:1];
+     [[self addPropF:@"lightY"] setMinValue:-1 maxValue:1];
+     [[self addPropF:@"lightZ"] setMinValue:-1 maxValue:1];
+     [self addPropF:@"shaderDiffuse"] ;*/
     [[self addPropF:@"shaderGain"] setMaxValue:10.0];
     [Prop(@"shaderGain") setMidiSmoothing:0.1];
     
     [[self addPropF:@"shaderCrazy"] setMinValue:0 maxValue:1];
     [[self addPropF:@"shaderTilt"] setMinValue:-0.1 maxValue:0.1];
-
+    
     
     [[self addPropF:@"shaderAnimalHeight"] setMinValue:0 maxValue:1];
     [[self addPropF:@"shaderAnimalRadius"] setMinValue:0 maxValue:20];
@@ -115,20 +114,22 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     [Prop(@"globalLightPosX") setMidiSmoothing:0.8];
     [Prop(@"globalLightPosY") setMidiSmoothing:0.8];
-
-
+    [Prop(@"globalLightPosZ") setMidiSmoothing:0.8];
+    
+    
     [[self addPropF:@"globalLightR"] setMinValue:0 maxValue:1];
     [[self addPropF:@"globalLightG"] setMinValue:0 maxValue:1];
     [[self addPropF:@"globalLightB"] setMinValue:0 maxValue:1];
-
+    
     
     
     [[self addPropF:@"globalLightIntensity"] setMinValue:0 maxValue:2];
+    [Prop(@"globalLightIntensity") setMidiSmoothing:0.8];
     
     [self addPropB:@"globalBorder"];
     [self addPropF:@"globalDrawPassive"];
     [self addPropF:@"globalDrawInactive"];
-
+    
     [[self addPropF:@"globalWindX"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWindY"] setMinValue:-1000 maxValue:1000];
     [[self addPropF:@"globalWind"] setMinValue:0 maxValue:1];
@@ -138,12 +139,12 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"pointWind"] setMinValue:0 maxValue:100];
     
     /*
-    [[self addPropF:@"rectAddX"] setMinValue:0 maxValue:1];
-    [[self addPropF:@"rectAddY"] setMinValue:0 maxValue:1];
-    [[self addPropF:@"rectAddWidth"] setMinValue:0 maxValue:1];
-    [[self addPropF:@"rectAddHeight"] setMinValue:0 maxValue:1];
-    [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
-    */
+     [[self addPropF:@"rectAddX"] setMinValue:0 maxValue:1];
+     [[self addPropF:@"rectAddY"] setMinValue:0 maxValue:1];
+     [[self addPropF:@"rectAddWidth"] setMinValue:0 maxValue:1];
+     [[self addPropF:@"rectAddHeight"] setMinValue:0 maxValue:1];
+     [[self addPropF:@"rectAdd"] setMinValue:0 maxValue:500];
+     */
     
     [[self addPropF:@"whirlAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"whirlRadius"] setMinValue:0 maxValue:1];
@@ -153,9 +154,9 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"stickyAmount"] setMinValue:0 maxValue:1];
     [[self addPropF:@"stickyGain"] setMinValue:0 maxValue:1];
     
-/*    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
-    [[self addPropF:@"opticalFlowMinForce"] setMinValue:0 maxValue:1];
-  */  
+    /*    [[self addPropF:@"opticalFlow"] setMinValue:0 maxValue:10];
+     [[self addPropF:@"opticalFlowMinForce"] setMinValue:0 maxValue:1];
+     */
     [self addPropB:@"fluids"];
     [self addPropB:@"fluidsDraw"];
     [[self addPropF:@"fluidsAmount"] setMaxValue:100.0];
@@ -167,25 +168,24 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     [[self addPropF:@"trackerDilate"] setMaxValue:40];
     [[self addPropF:@"trackerSubtract"] setMaxValue:10];
     [[self addPropF:@"trackerMultiplier"] setMaxValue:10];
-
-        [[self addPropF:@"sideAdd"] setMaxValue:1];
+    
+    [[self addPropF:@"sideAdd"] setMaxValue:1];
     [[self addPropF:@"sideAddForce"] setMaxValue:1];
     
     
     vdkQueue = [[VDKQueue alloc]init];
     [vdkQueue addPath:@"/Users/recoil/Documents/Produktioner/Tørst/mask"];
     vdkQueue.delegate = self;
-
+    
     loadMask = true;
 }
 
 -(void)VDKQueue:(VDKQueue *)queue receivedNotification:(NSString *)noteName forPath:(NSString *)fpath{
     NSLog(@"Watcher");
-//    [self loadFolder];
+    //    [self loadFolder];
     
     loadMask = true;
 }
-
 
 
 -(void)setup{
@@ -396,14 +396,14 @@ float * createBlurMask(float sigma, int * maskSizePointer) {
     
     
     
-/*    dispatch_sync(dispatch_get_main_queue(), ^{
-        videoPlayer = [[[QTKitMovieRenderer alloc] init] retain];
-        BOOL video = [videoPlayer loadMovie:@"/Users/recoil/Documents/Produktioner/Tørst/storm.mp4" allowTexture:YES allowPixels:NO];
-        [videoPlayer setLoops:YES];
-        
-        NSAssert(video, @"No storm video");
-    });*/
-
+    /*    dispatch_sync(dispatch_get_main_queue(), ^{
+     videoPlayer = [[[QTKitMovieRenderer alloc] init] retain];
+     BOOL video = [videoPlayer loadMovie:@"/Users/recoil/Documents/Produktioner/Tørst/storm.mp4" allowTexture:YES allowPixels:NO];
+     [videoPlayer setLoops:YES];
+     
+     NSAssert(video, @"No storm video");
+     });*/
+    
     
     
     
@@ -458,12 +458,12 @@ static dispatch_once_t onceToken;
     CachePropF(mouseForce);
     CachePropF(mouseRadius);
     CachePropF(mouseAdd);
-  /*
-    CachePropF(rectAdd);
-    CachePropF(rectAddX);
-    CachePropF(rectAddY);
-    CachePropF(rectAddWidth);
-    CachePropF(rectAddHeight);*/
+    /*
+     CachePropF(rectAdd);
+     CachePropF(rectAddX);
+     CachePropF(rectAddY);
+     CachePropF(rectAddWidth);
+     CachePropF(rectAddHeight);*/
     
     CachePropF(particleDamp);
     CachePropF(generalDt);
@@ -492,7 +492,7 @@ static dispatch_once_t onceToken;
         
         // particlesVboData = (ParticleVBO*) malloc(NUM_PARTICLES* sizeof(ParticleVBO));
         particles = (Particle*) malloc(NUM_PARTICLES* sizeof(Particle));
-
+        
         for(int i=0; i<NUM_PARTICLES; i++) {
             Particle &p = particles[i];
             p.vel.s[0] = 0;//ofRandom(-1,1);
@@ -510,30 +510,36 @@ static dispatch_once_t onceToken;
         for(int i=0;i<NUM_PARTICLES/32;i++){
             isDead[i] = 0xFFFFFFFF;
         }
-
+        
         
         
         /*
          countPassiveBuffer_gpu
          particle_gpu
          */
-
-        unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
-        for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
-            pixelsDst[i] = 0;
-        }
-    
-
         
-        dispatch_sync(queue,
-                      ^{
-                          gcl_memcpy(particle_gpu, particles, sizeof(Particle)*NUM_PARTICLES);
-                          gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
-                          gcl_memcpy(isDead_gpu, isDead, sizeof(int)*(NUM_PARTICLES/32));
-                          delete pixelsDst;
-                          delete particles;
-
-                      });
+        ofImage image;
+        image.setUseTexture(false);
+        bool loaded =  image.loadImage("/Users/recoil/Documents/Produktioner/Tørst/background/background.jpg");
+        if(loaded){
+            
+            unsigned int * pixelsDst = (unsigned int*)malloc(sizeof(unsigned int)*TEXTURE_RES*TEXTURE_RES);
+            for(int i=0;i<TEXTURE_RES*TEXTURE_RES;i++){
+                pixelsDst[i] = image.getPixelsRef()[i]*1000.0;
+            }
+            
+            
+            
+            dispatch_sync(queue,
+                          ^{
+                              gcl_memcpy(particle_gpu, particles, sizeof(Particle)*NUM_PARTICLES);
+                              gcl_memcpy(countPassiveBuffer_gpu, pixelsDst, sizeof(PassiveType)*TEXTURE_RES*TEXTURE_RES);
+                              gcl_memcpy(isDead_gpu, isDead, sizeof(int)*(NUM_PARTICLES/32));
+                              delete pixelsDst;
+                              delete particles;
+                              
+                          });
+        }
     }
     
     if(PropF(@"sideAdd")){
@@ -550,7 +556,7 @@ static dispatch_once_t onceToken;
                 forceData[i*2+1] = 0;
                 
                 if(x > TEXTURE_RES - 10){
-                  //  float random = ofRandom(-10,10);
+                    //  float random = ofRandom(-10,10);
                     
                     
                     //float s = (sin(sin(frameNum/(100.0+random*2)) + cos(y/100.0+random))+1)/2.0;
@@ -568,14 +574,14 @@ static dispatch_once_t onceToken;
         }
         
         dispatch_async(queue,
-                      ^{
-                          gcl_memcpy(countCreateParticleBuffer_gpu, countCreateData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES);
-                          gcl_memcpy(forceField_gpu, forceData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES*2);
-                          
-                      });
-
+                       ^{
+                           gcl_memcpy(countCreateParticleBuffer_gpu, countCreateData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES);
+                           gcl_memcpy(forceField_gpu, forceData, sizeof(cl_uint)*TEXTURE_RES*TEXTURE_RES*2);
+                           
+                       });
         
- 
+        
+        
     }
     
     
@@ -632,8 +638,8 @@ static dispatch_once_t onceToken;
             trackerMaxX = ceil((trackerMaxX) / 32.0f)*32.0f;
             trackerMaxY = ceil((trackerMaxY) / 32.0f)*32.0f;
             
-           // NSLog(@"%i %i  (%i, %i) (%i, %i)", trackerMinI,trackerMaxI, trackerMinX, trackerMinY, trackerMaxX, trackerMaxY);
-
+            // NSLog(@"%i %i  (%i, %i) (%i, %i)", trackerMinI,trackerMaxI, trackerMinX, trackerMinY, trackerMaxX, trackerMaxY);
+            
             dispatch_async(queue,
                            ^{
                                gcl_memcpy(bodyField_gpu[0]+trackerMinI, bodyFieldData+trackerMinI, sizeof(BodyType)*(trackerMaxI-trackerMinI));
@@ -644,8 +650,8 @@ static dispatch_once_t onceToken;
     // StopTimer();
     
     
-        
-
+    
+    
     if(PropB(@"shaderLoad")){
         SetPropB(@"shaderLoad", 0);
         [self loadShader];
@@ -724,19 +730,19 @@ static dispatch_once_t onceToken;
             for(int y=0;y<FluidSize;y++){
                 for(int x=0;x<FluidSize;x++){
                     ofVec2f pos = ofVec2f(x/(float)FluidSize, y/(float)FluidSize);
-
+                    
                     int index = fluidSolver.getIndexForPos(pos);
-
+                    
                     float d = pos.distance(center);
                     if(d < fluidsRadius){
                         
-    /*                    ofVec2f dir = pos - center;
-                        dir.normalize();
-                        dir /= 10000.0;
-                        
-                        dir *= 1.0/d;
-  */
-//                        fluidSolver.addForceAtIndex(index, dir/**(fluidsRadius-d)/fluidsRadius*/);
+                        /*                    ofVec2f dir = pos - center;
+                         dir.normalize();
+                         dir /= 10000.0;
+                         
+                         dir *= 1.0/d;
+                         */
+                        //                        fluidSolver.addForceAtIndex(index, dir/**(fluidsRadius-d)/fluidsRadius*/);
                         fluidSolver.addForceAtIndex(index, (trackers[0]-lastFluidPos)*(fluidsRadius-d)/fluidsRadius);
                     }
                     
@@ -871,12 +877,12 @@ static dispatch_once_t onceToken;
                       if(PropF(@"sideAdd")){
                           CachePropF(sideAdd);
                           
-                        //  sideAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, sideAdd, ofRandom(0,1));
-          
+                          //  sideAdd_kernel(&ndrangeTex, countCreateParticleBuffer_gpu, sideAdd, ofRandom(0,1));
+                          
                           
                           
                       }
-
+                      
                       
                       /* if(rectAdd){
                        cl_float4 rect;
@@ -1045,10 +1051,10 @@ static dispatch_once_t onceToken;
                           updateForceTexture_kernel(&ndrangeTex, forceTexture_gpu, forceField_gpu);
                       }
                       
-                  /*
-                      if(PropF(@"passiveBlur")){
-                          gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
-                      }*/
+                      /*
+                       if(PropF(@"passiveBlur")){
+                       gaussianBlurBuffer_kernel(&ndrangeTex, countPassiveBuffer_gpu, mask_gpu, maskSize, PropF(@"passiveBlur"), PropF(@"passiveFade"));
+                       }*/
                       
                       
                       cl_ndrange ndrangeReset = {
@@ -1076,7 +1082,7 @@ static dispatch_once_t onceToken;
                       //DEBUG
                       if(_debug){
                           gcl_memcpy(counter, counter_gpu, sizeof(ParticleCounter));
-                            NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
+                          NSLog(@"Active: %i inactive: %i dead: %i deadbit: %i",counter->activeParticles, counter->inactiveParticles, counter->deadParticles, counter->deadParticlesBit);
                       }
                       
                       if(_debug){
@@ -1229,7 +1235,7 @@ static dispatch_once_t onceToken;
     ofSetColor(255, 255, 255, 255);
     maskImage.draw(0,0,1,1);
     
-     PopSurface();
+    PopSurface();
     
     
 }
